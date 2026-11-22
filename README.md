@@ -1,18 +1,35 @@
 # 便签墙 + 任务板（`@local/sticky-board`）
 
+[![Release](https://img.shields.io/github/v/release/moluz/sticky-board?label=release)](https://github.com/moluz/sticky-board/releases)
+[![License](https://img.shields.io/github/license/moluz/sticky-board)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-57%20passed-brightgreen)](#开发与验证)
+[![Smoke](https://img.shields.io/badge/host%20smoke-32%20steps-blue)](#开发与验证)
+![DSH](https://img.shields.io/badge/DSH-%E2%89%A5%200.2.1--rc.4-4f8cff)
+[![Downloads](https://img.shields.io/github/downloads/moluz/sticky-board/total)](https://github.com/moluz/sticky-board/releases)
+
 一个 DeepSeek Harness Web UI 插件：**自由摆放的便签墙**和**拖拽任务板**共用同一份数据，支持墙 ↔ 板双向转换，并把同一套操作暴露给模型工具。
 
 - 面板位置：左侧栏入口（order 16）+ 中央 `main` 主面板
 - 数据位置：`$DSH_HOME/sticky-board/board.json`（可用插件配置 `storePath` 改）
-- 需求与路线图：[docs/任务板需求-2026-11.md](docs/任务板需求-2026-11.md)
-- 许可：MIT（数据格式与 UI 均为本项目原创）
+- 仓库：<https://github.com/moluz/sticky-board>（MIT，含 Release 产物）
+- 设计与调研：[docs/调研与初步方案.md](docs/调研与初步方案.md)
+- 验证记录：[docs/验证记录.md](docs/验证记录.md)
 
 ## 安装
 
 在插件管理器里安装本目录（本地目录安装，不要手写 profile 的 `package.json` / `cordis.patch.yml`）：
 
 ```
-plugin_manager action=install_bundle target=C:\Users\zhaox\Documents\DSH_anything\sticky-board
+plugin_manager action=install_bundle target=<clone 目录绝对路径>
+```
+
+从 GitHub 首次安装：
+
+```powershell
+git clone https://github.com/moluz/sticky-board.git
+# 再对上目录执行 install_bundle；或直接下载 Release 里的 tgz：
+# https://github.com/moluz/sticky-board/releases/latest
+plugin_manager action=install_bundle target=<tgz 绝对路径>
 ```
 
 安装结果看返回的 `application`（应为 `applied`）与 `warnings`。装好后左侧栏出现「便签墙 + 任务板」图标，点开即主面板；**页面刷新**后生效。
