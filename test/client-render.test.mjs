@@ -294,6 +294,19 @@ function createFakeHost(initial) {
     if (String(body.action).startsWith('history.')) {
       return { ok: true, status: 200, json: async () => ({ ...doc, undone: true }) };
     }
+    if (body.action === 'backup.list') {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...doc,
+          backups: [{ day: '2026-11-20', size: 4096, notes: 1, cards: 1 }],
+        }),
+      };
+    }
+    if (body.action === 'backup.restore') {
+      return { ok: true, status: 200, json: async () => ({ ...doc, restored: true, day: body.day }) };
+    }
     if (!String(body.action).startsWith('card.')) return respond();
     if (body.action === 'card.bulkUpdate') {
       for (const id of Array.isArray(body.ids) ? body.ids : []) {
@@ -615,6 +628,134 @@ test('multi-selected cards toggle done in one bulk write', async () => {
     assert.ok(bulk !== undefined, 'one bulk request instead of one update per card');
     assert.deepEqual(bulk.ids, ['card-bbbbbbbbbb', 'card-cccccccccc']);
     assert.equal(bulk.patch.done, true);
+  } finally {
+    await unmount();
+  }
+});
+
+test('column quick-add creates a real card instead of a placeholder', async () => {
+  const { container, host, unmount } = await mountPanel(fakeSnapshot());
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+
+    const addButton = container.querySelector('.sb-col .sb-col-add');
+    assert.ok(addButton !== null, 'column add button exists');
+    await act(async () => {
+      addButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const input = container.querySelector('.sb-quickadd input');
+    assert.ok(input !== null, 'clicking add opens the inline input');
+
+    // 空标题回车不应产生卡片
+    await act(async () => {
+      input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    await act(async () => {});
+    assert.equal(host.calls.some((call) => call.action === 'card.create'), false, 'blank titles create nothing');
+
+    const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    await act(async () => {
+      setValue.call(input, '快速卡');
+      input.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    await act(async () => {});
+
+    const created = host.calls.find((call) => call.action === 'card.create');
+    assert.ok(created !== undefined, 'Enter sends card.create');
+    assert.equal(created.card.title, '快速卡');
+    assert.equal(created.card.columnId, 'todo');
+    assert.notEqual(created.card.title, 'action.addCard', 'no placeholder card is created');
+    const stillOpen = container.querySelector('.sb-quickadd input');
+    assert.ok(stillOpen !== null, 'the composer stays open for the next card');
+    assert.equal(stillOpen.value, '', 'the draft is cleared after adding');
+
+    // Esc 关闭输入框
+    await act(async () => {
+      stillOpen.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    assert.equal(container.querySelector('.sb-quickadd'), null, 'Esc closes the composer');
+  } finally {
+    await unmount();
+  }
+});
+
+test('client-side search re-filter keeps acceptance matches', async () => {
+  const { container, unmount } = await mountPanel(fakeSnapshot());
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const search = container.querySelector('.sb-search');
+    assert.ok(search !== null, 'search input exists');
+    const setValue = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    await act(async () => {
+      setValue.call(search, '验收');
+      search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    });
+    assert.ok(
+      container.querySelector('[data-card-id="card-bbbbbbbbbb"]') !== null,
+      'a card matched on acceptance is not dropped by the client re-filter',
+    );
+
+    await act(async () => {
+      setValue.call(search, 'zzz-nothing');
+      search.dispatchEvent(new window.Event('input', { bubbles: true }));
+    });
+    await act(async () => {});
+    assert.equal(
+      container.querySelector('[data-card-id="card-bbbbbbbbbb"]'),
+      null,
+      'a non-matching query hides the card',
+    );
+  } finally {
+    await unmount();
+  }
+});
+
+test('the ⋯ menu restores a daily snapshot after picking one', async () => {
+  const { container, host, unmount } = await mountPanel(fakeSnapshot());
+  try {
+    const menuButton = container.querySelector('[title="action.menu"]');
+    assert.ok(menuButton !== null, '⋯ menu exists');
+    await act(async () => {
+      menuButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const restoreItem = [...container.querySelectorAll('.sb-menu-item')]
+      .find((button) => button.textContent === 'action.restoreBackup');
+    assert.ok(restoreItem !== undefined, '⋯ menu lists the snapshot restore action');
+    await act(async () => {
+      restoreItem.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+
+    const dialog = container.querySelector('.sb-modal.sb-backup');
+    assert.ok(dialog !== null, 'snapshot dialog opens after loading the list');
+    assert.match(dialog.textContent, /2026-11-20/, 'snapshot day is listed');
+    assert.match(dialog.textContent, /backup\.confirm/, 'the dialog explains what is replaced');
+    assert.match(dialog.textContent, /backup\.safety/, 'the dialog mentions the safety copy and undo');
+
+    const restoreButton = [...dialog.querySelectorAll('button')]
+      .find((button) => button.textContent === 'backup.restoreOne');
+    assert.ok(restoreButton !== undefined, 'restore button exists');
+    assert.equal(restoreButton.disabled, false, 'the first snapshot is selected by default');
+    await act(async () => {
+      restoreButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const restored = host.calls.find((call) => call.action === 'backup.restore');
+    assert.ok(restored !== undefined, 'restoring posts backup.restore');
+    assert.equal(restored.day, '2026-11-20');
+    assert.equal(container.querySelector('.sb-modal.sb-backup'), null, 'the dialog closes after restoring');
   } finally {
     await unmount();
   }

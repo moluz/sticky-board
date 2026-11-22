@@ -389,8 +389,7 @@ test('每日快照：首次写入只记日期，同日不重复复制', async (t
   assert.equal(await fs.access(`${filePath}.bak-${key}`).then(() => true, () => false), false, '同一天不重复复制');
 });
 
-test('跨天写入生成快照，并只保留最近 7 份', async (t) => {
-  const dir = await makeTempDir(t);
+test('跨天写入生成快照，并只保留最近 7 份', async (t) => {  const dir = await makeTempDir(t);
   const filePath = path.join(dir, 'board.json');
   const store = createStore({ filePath });
   await store.ready;
@@ -416,4 +415,80 @@ test('跨天写入生成快照，并只保留最近 7 份', async (t) => {
   const backups = (await fs.readdir(dir)).filter((name) => name.startsWith('board.json.bak-')).sort();
   assert.equal(backups.length, 7, `kept ${backups.join(',')}`);
   assert.equal(backups.includes(`board.json.bak-${key}`), true, '今天的快照必须保留');
+});
+
+test('快照列表与恢复：恢复前留 restore-backup、可撤销、rev 前进', async (t) => {
+  const dir = await makeTempDir(t);
+  const filePath = path.join(dir, 'board.json');
+  // 一份 v3 旧文档，模拟当天首次写入前的状态
+  await fs.writeFile(
+    filePath,
+    JSON.stringify({
+      version: 3,
+      rev: 5,
+      notes: [{ id: 'note-snap', lines: [{ id: 'l-snap', kind: 'text', text: '快照前' }] }],
+      boards: [
+        {
+          id: 'board-main',
+          title: '默认看板',
+          columns: [{ id: 'todo', title: '待办', order: 0 }],
+          cards: [{ id: 'card-snap', title: '旧卡', columnId: 'todo' }],
+        },
+      ],
+      settings: { activeView: 'wall', activeBoardId: 'board-main' },
+      updatedAt: 1,
+    }),
+    'utf8',
+  );
+
+  const store = createStore({ filePath });
+  await store.ready;
+  // 第一次写入触发每日快照（复制写入前的 v3 文件）
+  await store.mutate((doc) => {
+    doc.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '新数据' }] }, 2));
+  });
+  assert.equal(store.snapshot().notes.length, 2);
+
+  const list = await store.listBackups();
+  assert.equal(list.length, 1, 'one snapshot for today');
+  const [entry] = list;
+  assert.match(entry.day, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(entry.notes, 1, 'snapshot counts the pre-write notes');
+  assert.equal(entry.cards, 1);
+  assert.ok(entry.size > 0);
+
+  const revBefore = store.revision();
+  const restored = await store.restoreBackup(entry.day);
+  assert.equal(restored.changed, true);
+  assert.equal(restored.value.day, entry.day);
+  assert.equal(store.snapshot().notes.length, 1);
+  assert.equal(store.snapshot().notes[0].text, '快照前');
+  assert.equal(store.snapshot().version, 4, 'a v3 snapshot is migrated on restore');
+  assert.ok(store.revision() > revBefore, 'rev keeps moving so pollers notice');
+
+  const safety = await readJson(restored.value.safetyPath);
+  assert.equal(safety.notes.length, 2, 'the pre-restore document was kept aside');
+
+  const undone = await store.undo();
+  assert.equal(undone.changed, true);
+  assert.equal(store.snapshot().notes.length, 2, 'undo returns to the pre-restore document');
+});
+
+test('快照恢复校验：非法日期 400、缺失 404、坏快照 400，列表标出损坏项', async (t) => {
+  const dir = await makeTempDir(t);
+  const filePath = path.join(dir, 'board.json');
+  const store = createStore({ filePath });
+  await store.ready;
+
+  await fs.writeFile(`${filePath}.bak-2020-01-01`, '{ not json', 'utf8');
+  await fs.writeFile(`${filePath}.bak-2020-01-02`, JSON.stringify({ hello: 'world' }), 'utf8');
+  const list = await store.listBackups();
+  assert.deepEqual(list.map((entry) => entry.day), ['2020-01-02', '2020-01-01']);
+  assert.equal(list[0].notes, null);
+  assert.equal(list[1].notes, null);
+
+  await assert.rejects(store.restoreBackup('2020/01/01'), { status: 400 });
+  await assert.rejects(store.restoreBackup('1999-01-01'), { status: 404 });
+  await assert.rejects(store.restoreBackup('2020-01-01'), { status: 400 });
+  await assert.rejects(store.restoreBackup('2020-01-02'), { status: 400 });
 });

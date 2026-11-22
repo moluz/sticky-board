@@ -2,6 +2,13 @@
 
 Notable changes to `@local/sticky-board`. Versions are local (not published).
 
+## 0.19.0
+
+- Column quick-add: the “＋ 添加任务” button now opens an inline input instead of creating a placeholder card titled 添加任务. `Enter` adds the card and keeps the composer open for the next one, `Esc` closes it, and blank titles create nothing.
+- Search covers the schema v4 fields: cards match on acceptance criteria, checklist item text and labels in addition to title/description (server side, the client re-filter and `sticky_task_list`'s `query` all share the rule). The search placeholder says so.
+- Snapshot restore: `⋯` → 从快照恢复 lists the newest 7 daily snapshots (day, size, note/card counts) and restores the picked one. Before writing, the current document is copied to `board.json.restore-backup`; the restore gets a fresh `rev`, lands on the undo stack (`Ctrl+Z`), and `POST backup.list` / `backup.restore` back the dialog.
+- Tests: 71 unit tests (store snapshot list/restore + safety copy, render quick-add and snapshot dialog, client search re-filter) and 37 smoke steps.
+
 ## 0.18.0
 
 - Schema v4: cards gain `acceptance` (multi-line acceptance criteria, ≤2000 chars) and boards gain `doneColumnId`; v1/v2/v3 documents are read as v4 with defaults filled in. v3 → v4 infers the done column (id `done`, else a column titled 完成/Done/Completed) and marks cards already sitting there as done.

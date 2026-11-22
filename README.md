@@ -59,6 +59,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 - **完成列可配置**：统计条右侧「完成列 ▾」指定当前看板哪一列代表「完成」（默认三列板是「完成」；五列模板自动认「完成」；也可以选「不指定完成列」）。卡片移入该列自动标记完成、移出自动清除，列头显示绿色 ✓
 - **验收标准**：卡片新增 `acceptance` 多行文本（≤2000 字），抽屉里写「什么算做完」，卡片上显示「验收」胶囊；模型工具的建/改/列表同样支持
 - **拖动列头左侧 `⠿` 手柄可调整列顺序**（拖到哪一列就占据那一列的位置：向右拖 2 格就是移 2 格）；列内卡片拖拽换列/排序（HTML5 拖放，松手即保存）；**拖到看板左右边缘自动横向滚动、拖到长列上下边缘自动纵向滚动**
+- **列内快速录入**：点列底「＋ 添加任务」出现内联输入框，`Enter` 添加并保持输入框（可连续录入）、`Esc` 关闭；空标题不建卡，不再生成标题为「添加任务」的占位卡
 - 优先级色条（P0–P3）、截止日期（过期标黄）、标签、完成勾选
 - **阻塞**：抽屉里勾选「阻塞」并填原因（≤200 字），卡片显示红色「阻塞」胶囊，筛选条可「只看阻塞」
 - **统计条**：看板 tab 下方一行——各列计数、`P0+P1`、逾期、阻塞；点后三者即套用对应筛选
@@ -70,11 +71,11 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 **回收站**：便签与任务分两组列出，**支持多选**：全选 / 恢复选中 / 彻底删除选中，另有一键「清空回收站」（顶部操作条与「⋯」菜单各有一个入口）。
 
-**搜索**：**服务端过滤**（输入防抖 220ms，Host 按 `q` 只回匹配的便签与卡片，计数仍是全局值）；搜索期间禁用全部拖拽（便签、卡片、列、看板 tab），避免在过滤后的列表上算错位置。
+**搜索**：**服务端过滤**（输入防抖 220ms，Host 按 `q` 只回匹配的便签与卡片，计数仍是全局值）；卡片匹配标题、描述、**验收标准、检查项文本、标签**，便签匹配标题与正文；客户端二次过滤与服务端同规则（避免服务端命中的卡被本地滤掉）；搜索期间禁用全部拖拽（便签、卡片、列、看板 tab），避免在过滤后的列表上算错位置。
 
 **性能**：6 秒轮询会比对 `rev`，文档没变就跳过渲染；拖动期间暂停轮询；拖动便签只写 `transform`，不触发 React 重渲染。
 
-**备份**：每天首次写入前自动把 `board.json` 复制为 `board.json.bak-YYYY-MM-DD`，保留最近 **7 份**；恢复时把对应 `.bak` 文件改回 `board.json` 即可。
+**备份**：每天首次写入前自动把 `board.json` 复制为 `board.json.bak-YYYY-MM-DD`，保留最近 **7 份**；`⋯` → **从快照恢复** 会列出这些快照（日期 / 大小 / 便签数 / 任务数），选中即恢复，恢复前把当前数据另存为 `board.json.restore-backup`，并可用 `Ctrl+Z` 撤销这次恢复。也可以手工把对应 `.bak` 文件改回 `board.json`。
 
 **整理 / 备份**
 
@@ -160,7 +161,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 单端点 `/api/sticky-board`：
 
 - `GET ?trash=1&q=…`：快照（含计数、列、回收站）；`q` 非空时 Host 只回匹配的便签与卡片，`counts` 仍是全局值
-- `POST { action, … }`：`note.create|update|bulkUpdate|remove|restore|toTask|tidy|trashMany`、`card.create|update|bulkUpdate|move|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列，`board.update` 可带 `doneColumnId`）、`locate`、`link`、`link.sync`、`settings.update`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
+- `POST { action, … }`：`note.create|update|bulkUpdate|remove|restore|toTask|tidy|trashMany`、`card.create|update|bulkUpdate|move|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列，`board.update` 可带 `doneColumnId`）、`locate`、`link`、`link.sync`、`settings.update`、`backup.list|restore`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
 
 ## 发布 / 分发
 
@@ -176,8 +177,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ## 开发与验证
 
 ```powershell
-npm test              # node --test：66 例（model/store + Client 渲染/交互/主题/弹窗 + lint 自查）
-npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（36 步）
+npm test              # node --test：71 例（model/store + Client 渲染/交互/主题/弹窗/快照恢复 + lint 自查）
+npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（37 步）
 npm run lint:client   # hooks 依赖顺序自查（防「面板空白」类渲染崩溃）
 npm run check:contrast # 明暗两套装饰色的 WCAG 对比度守卫
 npm run pack:check    # 校验 npm pack 会带上的文件（15 个）

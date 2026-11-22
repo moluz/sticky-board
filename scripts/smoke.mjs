@@ -758,6 +758,27 @@ await step('server-side search filters notes and keeps global counts', async () 
   assert.equal(hit.body.notes.length, 1);
   assert.match(hit.body.notes[0].text, /服务端搜索目标/);
   assert.equal(hit.body.counts.notes, totalNotes, 'counts must stay global, not filtered');
+
+  // schema v4 的验收标准 / 检查项 / 标签也要能搜到（模型 query 同源）
+  const created = await post(route, 'card.create', {
+    card: {
+      title: '搜索卡片',
+      note: '正文目标词',
+      acceptance: '验收目标词',
+      labels: ['标签目标词'],
+      checklist: [{ text: '检查项目标词', done: false }],
+    },
+  });
+  const cardId = created.body.card.id;
+  for (const term of ['验收目标词', '标签目标词', '检查项目标词']) {
+    const cardHit = await get(route, `?trash=1&q=${encodeURIComponent(term)}`);
+    assert.equal(cardHit.body.board.cards.length, 1, `${term} should match the card`);
+    assert.equal(cardHit.body.board.cards[0].id, cardId);
+  }
+  const viaTool = await tools.get('sticky_task_list').execute({ query: '检查项目标词' }, {});
+  assert.match(viaTool.text, /搜索卡片/);
+  await post(route, 'card.remove', { id: cardId, permanent: true });
+
   const miss = await get(route, '?trash=1&q=zzz-nothing-matches');
   assert.equal(miss.body.notes.length, 0);
   assert.equal(miss.body.board.cards.length, 0);
@@ -773,6 +794,60 @@ await step('import replace swaps the whole document', async () => {
   assert.equal(replaced.body.boards.length, document.boards.length);
   assert.equal(replaced.body.board.cards.length, document.boards[0].cards.length);
   assert.equal(replaced.body.notes.length, document.notes.length);
+});
+
+await step('daily snapshots can be listed and restored through the route', async () => {
+  const snapshotFile = path.join(tmp, 'snapshot-board.json');
+  await writeFile(
+    snapshotFile,
+    JSON.stringify({
+      version: 3,
+      rev: 7,
+      notes: [{ id: 'note-old', lines: [{ id: 'l-old', kind: 'text', text: '快照前' }] }],
+      boards: [
+        {
+          id: 'board-main',
+          title: '默认看板',
+          columns: [{ id: 'todo', title: '待办', order: 0 }],
+          cards: [],
+        },
+      ],
+      settings: { activeView: 'wall', activeBoardId: 'board-main' },
+      updatedAt: 1,
+    }),
+    'utf8',
+  );
+  const snapshotCtx = fakeContext();
+  apply(snapshotCtx, { storePath: snapshotFile });
+  const snapshotRoute = snapshotCtx.registered.route;
+
+  // 第一次写入前会把当时的 v3 文件复制成当日快照
+  await post(snapshotRoute, 'note.create', { note: { lines: [{ kind: 'text', text: '新数据' }] } });
+  const listed = await post(snapshotRoute, 'backup.list');
+  assert.equal(listed.body.ok, true);
+  assert.equal(listed.body.backups.length, 1);
+  const [entry] = listed.body.backups;
+  assert.match(entry.day, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(entry.notes, 1, 'snapshot counts the pre-write document');
+  assert.ok(entry.size > 0);
+
+  const restored = await post(snapshotRoute, 'backup.restore', { day: entry.day });
+  assert.equal(restored.body.ok, true);
+  assert.equal(restored.body.restored, true);
+  const snapshot = await get(snapshotRoute);
+  assert.equal(snapshot.body.notes.length, 1);
+  assert.equal(snapshot.body.notes[0].text, '快照前');
+  const exported = await post(snapshotRoute, 'export');
+  assert.equal(exported.body.document.version, 4, 'a v3 snapshot is migrated on restore');
+  const safety = JSON.parse(await readFile(`${snapshotFile}.restore-backup`, 'utf8'));
+  assert.equal(safety.notes.length, 2, 'the pre-restore document was kept aside');
+
+  const undone = await post(snapshotRoute, 'history.undo');
+  assert.equal(undone.body.undone, true);
+  assert.equal((await get(snapshotRoute)).body.notes.length, 2, 'undo returns to the pre-restore document');
+
+  assert.equal((await post(snapshotRoute, 'backup.restore', { day: '1999-01-01' })).status, 404);
+  assert.equal((await post(snapshotRoute, 'backup.restore', { day: '../board' })).status, 400);
 });
 
 await step('unknown action and missing id answer 400, missing entity 404', async () => {

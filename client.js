@@ -51,6 +51,14 @@ window.__ModuleLoader__.load({
       'action.importMerge': '导入 JSON（合并）',
       'action.importReplace': '导入 JSON（替换）',
       'action.clearTrash': '清空回收站',
+      'action.restoreBackup': '从快照恢复',
+      'backup.title': '从快照恢复',
+      'backup.loading': '正在读取快照…',
+      'backup.empty': '还没有每日快照；每天首次写入前会自动生成，保留最近 7 份。',
+      'backup.confirm': '当前便签、任务与看板会被这份快照覆盖。',
+      'backup.safety': '恢复前会把当前数据另存为 board.json.restore-backup；恢复后也可 Ctrl+Z 撤销。',
+      'backup.restoreOne': '恢复这份快照',
+      'toast.restoredBackup': '已恢复快照',
       'action.selectAll': '全选',
       'action.restoreSelected': '恢复选中',
       'action.purgeSelected': '彻底删除选中',
@@ -154,7 +162,8 @@ window.__ModuleLoader__.load({
       'placeholder.note': '写点什么…支持多行；- [ ] 开头是待办，- 开头是列表',
       'placeholder.title': '任务标题',
       'placeholder.desc': '补充描述（Markdown 纯文本）',
-      'placeholder.search': '搜索标题或正文',
+      'placeholder.search': '搜索标题、正文、验收标准、检查项、标签',
+      'placeholder.quickAdd': '输入标题，回车添加…',
       'placeholder.column': '列名称',
       'col.todo': '待办',
       'col.doing': '进行中',
@@ -199,6 +208,14 @@ window.__ModuleLoader__.load({
       'action.importMerge': 'Import JSON (merge)',
       'action.importReplace': 'Import JSON (replace)',
       'action.clearTrash': 'Empty trash',
+      'action.restoreBackup': 'Restore a snapshot',
+      'backup.title': 'Restore a snapshot',
+      'backup.loading': 'Reading snapshots…',
+      'backup.empty': 'No daily snapshots yet; one is created before the first write of each day, keeping the newest 7.',
+      'backup.confirm': 'Every note, task and board will be replaced by this snapshot.',
+      'backup.safety': 'The current data is copied to board.json.restore-backup first, and Ctrl+Z undoes the restore.',
+      'backup.restoreOne': 'Restore this snapshot',
+      'toast.restoredBackup': 'Snapshot restored',
       'action.selectAll': 'Select all',
       'action.restoreSelected': 'Restore selected',
       'action.purgeSelected': 'Delete selected',
@@ -302,7 +319,8 @@ window.__ModuleLoader__.load({
       'placeholder.note': 'Write something… multiple lines; “- [ ]” starts a todo, “-” a list item',
       'placeholder.title': 'Task title',
       'placeholder.desc': 'Description (plain Markdown)',
-      'placeholder.search': 'Search titles and text',
+      'placeholder.search': 'Search titles, text, acceptance, checklist, labels',
+      'placeholder.quickAdd': 'Type a title, Enter to add…',
       'placeholder.column': 'Column name',
       'col.todo': 'To do',
       'col.doing': 'In progress',
@@ -408,6 +426,9 @@ window.__ModuleLoader__.load({
 .sb-check{flex:none;margin:2px 0 0;accent-color:var(--dsw-alias-state-success-primary,#3f9f6f)}
 .sb-col-add{cursor:pointer;border:1px dashed var(--dsw-alias-border-l2,#232a36);background:transparent;color:var(--dsw-alias-label-secondary,#93a1bb);border-radius:6px;padding:4px;font:inherit;font-size:11px;width:100%;margin-top:2px}
 .sb-col-add:hover{color:var(--dsw-alias-label-primary,#e6edf7);border-color:var(--dsw-alias-border-l1,#333d4d)}
+.sb-quickadd{display:flex;gap:4px;align-items:center;margin-top:2px}
+.sb-quickadd .sb-input{flex:1;min-width:0;padding:3px 6px;font-size:11px}
+.sb-quickadd .sb-btn,.sb-quickadd .sb-ico{flex:none}
 .sb-drawer{position:absolute;top:0;right:0;bottom:0;width:min(330px,92%);z-index:50;display:flex;flex-direction:column;background:var(--dsw-alias-bg-layer-1,#151a22);border-left:1px solid var(--dsw-alias-border-l2,#232a36);box-shadow:-8px 0 24px rgba(0,0,0,.28)}
 .sb-drawer-head{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--dsw-alias-border-l2,#232a36);font-weight:600}
 .sb-drawer-body{flex:1;min-height:0;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:9px}
@@ -454,6 +475,13 @@ window.__ModuleLoader__.load({
 .sb-modal-text{font-size:12px;line-height:1.55;color:var(--dsw-alias-label-secondary,#93a1bb);word-break:break-word}
 .sb-modal-hint{font-size:11px;line-height:1.5;color:var(--dsw-alias-label-secondary,#93a1bb);opacity:.85;border-top:1px dashed var(--dsw-alias-border-l2,#232a36);padding-top:6px}
 .sb-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px}
+.sb-backup{max-width:420px;width:min(420px,92vw)}
+.sb-backup-list{display:flex;flex-direction:column;gap:4px;max-height:236px;overflow-y:auto;padding-right:2px}
+.sb-backup-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;cursor:pointer;text-align:left;border:1px solid var(--dsw-alias-border-l2,#232a36);background:transparent;border-radius:6px;padding:5px 8px;font:inherit;font-family:inherit;color:var(--dsw-alias-label-primary,#e6edf7)}
+.sb-backup-row:hover{border-color:var(--dsw-alias-border-l1,#333d4d)}
+.sb-backup-row[data-on="true"]{border-color:var(--sb-accent);background:color-mix(in srgb,var(--sb-accent) 12%,transparent)}
+.sb-backup-day{font-size:12px;font-weight:600}
+.sb-backup-meta{font-size:10px;color:var(--dsw-alias-label-secondary,#93a1bb)}
 .sb-error{flex:none;display:flex;align-items:center;gap:8px;padding:4px 10px;background:color-mix(in srgb,var(--dsw-alias-state-error-primary,var(--sb-danger-soft)) 14%,transparent);color:var(--dsw-alias-state-error-primary,var(--sb-danger-soft));font-size:11px}
 .sb-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:100%;color:var(--dsw-alias-label-secondary,#93a1bb);text-align:center;padding:30px}
 .sb-toast{position:absolute;left:50%;bottom:38px;transform:translateX(-50%);z-index:130;display:flex;align-items:center;gap:10px;max-width:min(560px,92%);padding:7px 12px;border-radius:8px;background:var(--dsw-alias-bg-overlay,#242c3a);border:1px solid var(--dsw-alias-border-l1,#333d4d);box-shadow:0 8px 22px rgba(0,0,0,.45);font-size:12px}
@@ -1217,6 +1245,13 @@ window.__ModuleLoader__.load({
       }) {
         const [title, setTitle] = useState(column.title);
         useEffect(() => setTitle(column.title), [column.title]);
+        const [composing, setComposing] = useState(false);
+        const [draft, setDraft] = useState('');
+        const quickRef = useRef(null);
+
+        useEffect(() => {
+          if (composing) quickRef.current?.focus?.();
+        }, [composing]);
 
         /** Persist a renamed column, or restore the old title. */
         function saveTitle() {
@@ -1225,6 +1260,21 @@ window.__ModuleLoader__.load({
             return;
           }
           void call('column.update', { id: column.id, patch: { title } });
+        }
+
+        /** Add the typed card and stay open for the next one. */
+        async function submitDraft() {
+          const nextTitle = draft.trim();
+          if (nextTitle === '') return;
+          setDraft('');
+          await call('card.create', { card: { title: nextTitle, columnId: column.id } });
+          quickRef.current?.focus?.();
+        }
+
+        /** Leave quick-add mode and drop the draft. */
+        function cancelDraft() {
+          setDraft('');
+          setComposing(false);
         }
 
         return h(
@@ -1329,11 +1379,40 @@ window.__ModuleLoader__.load({
             drag?.kind === 'card' && dropColumn === column.id && dropCard === null
               ? h('div', { className: 'sb-drop-line' })
               : null,
-            h('button', {
-              type: 'button',
-              className: 'sb-col-add',
-              onClick: () => void call('card.create', { card: { title: t('action.addCard'), columnId: column.id } }),
-            }, `＋ ${t('action.addCard')}`),
+            composing
+              ? h(
+                  'div',
+                  { className: 'sb-quickadd' },
+                  h('input', {
+                    ref: quickRef,
+                    className: 'sb-input',
+                    value: draft,
+                    placeholder: t('placeholder.quickAdd'),
+                    'aria-label': t('action.addCard'),
+                    onChange: (event) => setDraft(event.target.value),
+                    onKeyDown: (event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void submitDraft();
+                      }
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        cancelDraft();
+                      }
+                    },
+                    onBlur: () => {
+                      if (draft.trim() === '') setComposing(false);
+                    },
+                  }),
+                  h(Btn, { onClick: () => void submitDraft(), disabled: draft.trim() === '' }, t('action.add')),
+                  h(Ico, { title: t('action.cancel'), onClick: cancelDraft }, '✕'),
+                )
+              : h('button', {
+                  type: 'button',
+                  className: 'sb-col-add',
+                  onClick: () => setComposing(true),
+                }, `＋ ${t('action.addCard')}`),
           ),
         );
       }
@@ -2260,12 +2339,82 @@ window.__ModuleLoader__.load({
         );
       }
 
+      /** Pick one daily snapshot and restore it (undoable; a safety copy is kept). */
+      function BackupDialog({ backups, onClose, onRestore }) {
+        const [selected, setSelected] = useState(backups[0]?.day ?? null);
+        const current = backups.find((entry) => entry.day === selected);
+        const cardRef = useRef(null);
+        useEffect(() => {
+          cardRef.current?.focus?.();
+        }, []);
+        return h(
+          'div',
+          { className: 'sb-mask', onPointerDown: onClose },
+          h(
+            'div',
+            {
+              className: 'sb-modal sb-backup',
+              ref: cardRef,
+              tabIndex: -1,
+              onPointerDown: (event) => event.stopPropagation(),
+              onKeyDown: (event) => {
+                if (event.key === 'Escape') {
+                  event.stopPropagation();
+                  onClose();
+                }
+              },
+            },
+            h('div', { className: 'sb-modal-title' }, t('backup.title')),
+            backups.length === 0
+              ? h('div', { className: 'sb-modal-text' }, t('backup.empty'))
+              : h(
+                  'div',
+                  { className: 'sb-backup-list' },
+                  backups.map((entry) =>
+                    h(
+                      'button',
+                      {
+                        key: entry.day,
+                        type: 'button',
+                        className: 'sb-backup-row',
+                        'data-on': entry.day === selected ? 'true' : undefined,
+                        onClick: () => setSelected(entry.day),
+                      },
+                      h('span', { className: 'sb-backup-day' }, entry.day),
+                      h('span', { className: 'sb-backup-meta' },
+                        `${(entry.size / 1024).toFixed(1)} KB · ${entry.notes ?? '?'} ${t('status.notes')} / ${entry.cards ?? '?'} ${t('status.cards')}`),
+                    ),
+                  ),
+                ),
+            backups.length === 0 ? null : h('div', { className: 'sb-modal-text' }, t('backup.confirm')),
+            h('div', { className: 'sb-modal-hint' }, t('backup.safety')),
+            h(
+              'div',
+              { className: 'sb-modal-actions' },
+              h(Btn, { onClick: onClose }, t('action.cancel')),
+              h(
+                Btn,
+                {
+                  danger: true,
+                  disabled: current === undefined,
+                  onClick: () => {
+                    if (current !== undefined) onRestore(current.day);
+                  },
+                },
+                t('backup.restoreOne'),
+              ),
+            ),
+          ),
+        );
+      }
+
       /** Root panel. */
       function App() {
         const [data, setData] = useState(null);
         const [view, setView] = useState('wall');
         const [scheme, setScheme] = useState(() => readScheme(themeCtx));
         const [confirmRequest, setConfirmRequest] = useState(null);
+        const [backupDialog, setBackupDialog] = useState(null);
         const [trashMode, setTrashMode] = useState(false);
         const [query, setQuery] = useState('');
         const [error, setError] = useState(null);
@@ -2516,8 +2665,18 @@ window.__ModuleLoader__.load({
           if (pinnedOnly === true && note.pinned !== true) return false;
           return true;
         });
+        // Keep the client-side re-filter in step with the Host: a card that
+        // matched on acceptance / checklist / labels must not be dropped here.
+        const cardSearchText = (card) => [
+          card.title,
+          card.note,
+          card.acceptance,
+          ...(Array.isArray(card.labels) ? card.labels : []),
+          ...(Array.isArray(card.checklist) ? card.checklist.map((item) => item?.text ?? '') : []),
+        ].join('\n');
+        const matchCard = (card) => needle === '' || String(cardSearchText(card)).toLowerCase().includes(needle);
         const visibleCards = allCards.filter((card) =>
-          trashMode ? card.trashed === true : card.trashed !== true && match(card.title, card.note),
+          trashMode ? card.trashed === true : card.trashed !== true && matchCard(card),
         );
 
         /** Active board filters (client-side; the snapshot already holds the board). */
@@ -2908,6 +3067,25 @@ window.__ModuleLoader__.load({
           await runImport();
         }
 
+        /** Load the daily snapshots and open the picker. */
+        async function openBackups() {
+          setMenuOpen(false);
+          const answer = await call('backup.list');
+          if (answer === null) return;
+          setBackupDialog({ backups: Array.isArray(answer.backups) ? answer.backups : [] });
+        }
+
+        /** Restore one snapshot, then drop any selection that may no longer exist. */
+        async function restoreBackup(day) {
+          const answer = await call('backup.restore', { day });
+          if (answer === null) return;
+          setBackupDialog(null);
+          setDrawerId(null);
+          clearCardSelection();
+          clearNoteSelection();
+          showToast({ text: `${t('toast.restoredBackup')} · ${day}` });
+        }
+
         /** Empty the trash after a confirmation. */
         function clearTrash() {
           setMenuOpen(false);
@@ -3205,6 +3383,10 @@ window.__ModuleLoader__.load({
           if (event.key === 'Escape') {
             if (confirmRequest !== null) {
               resolveConfirm(false);
+              return;
+            }
+            if (backupDialog !== null) {
+              setBackupDialog(null);
               return;
             }
             if (menuOpen) {
@@ -3553,6 +3735,7 @@ window.__ModuleLoader__.load({
                   h('button', { type: 'button', className: 'sb-menu-item', onClick: exportJson }, t('action.export')),
                   h('button', { type: 'button', className: 'sb-menu-item', onClick: () => pickImport('merge') }, t('action.importMerge')),
                   h('button', { type: 'button', className: 'sb-menu-item', onClick: () => pickImport('replace') }, t('action.importReplace')),
+                  h('button', { type: 'button', className: 'sb-menu-item', onClick: () => void openBackups() }, t('action.restoreBackup')),
                   h('button', {
                     type: 'button',
                     className: 'sb-menu-item',
@@ -3712,6 +3895,13 @@ window.__ModuleLoader__.load({
             }) : null,
           ),
           confirmRequest !== null ? h(ConfirmDialog, { request: confirmRequest, onResolve: resolveConfirm }) : null,
+          backupDialog !== null
+            ? h(BackupDialog, {
+                backups: backupDialog.backups,
+                onClose: () => setBackupDialog(null),
+                onRestore: (day) => void restoreBackup(day),
+              })
+            : null,
           toast !== null
             ? h(
                 'div',
