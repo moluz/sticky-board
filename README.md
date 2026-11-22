@@ -198,6 +198,15 @@ node scripts/publish-github.mjs   # GH_TOKEN 需具备上述权限
 
 装好后按 `docs/验证记录.md` 的清单做页面验证（明暗主题、刷新与重启后数据仍在、工具写入在 UI 可见）。
 
+## 相关项目 / 生态追踪
+
+- 同机兄弟项目 `dsh-design-workbench`（重型设计面板）：参考其主题/Token/撤销/弹窗实现。
+- **DSH 生态公开追踪库**：<https://github.com/moluz/dsh-ecosystem>
+  - 机器可读数据：[docs/ecosystem.json](docs/ecosystem.json)（DSH 版本、profile bundle、市场同类插件与 borrow/notBorrow 结论）
+  - 追踪方法：[docs/生态追踪.md](docs/生态追踪.md)
+  - 其他会话也可用 `mcp__github__get_file_contents(owner="moluz", repo="dsh-ecosystem", path="data/ecosystem.json")` 直接读取
+- 截至 2026-11-22：插件市场共 6487 条，其中便签墙/看板/todo 同类 15 个；本项目的差异点是**墙↔板双向联动 + 14 个模型工具与 UI 同源 + 跟随宿主明暗 + 零依赖**。
+
 ## 目录
 
 ```

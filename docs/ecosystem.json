@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-22T20:20:00+08:00",
+  "generatedBy": "DSH session (agent) via plugin_manager list_bundles + plugin_market list_plugins",
+  "dsh": {
+    "version": "0.2.2-rc.5",
+    "profile": {
+      "id": "desktop",
+      "path": "$DSH_HOME/profiles/desktop",
+      "enabledBundles": [
+        { "name": "@deepseek-ai/dsh-base", "version": "0.2.2-rc.5", "official": false, "kind": "stock" },
+        { "name": "@deepseek-ai/dsh-web-app", "version": "0.2.2-rc.5", "official": false, "kind": "stock" },
+        { "name": "@deepseek-ai/dsh-experimental-auto-review", "version": "0.2.2-rc.5", "official": true, "kind": "stock" },
+        { "name": "@deepseek-ai/dsh-experimental-plugin-market-bundle", "version": "0.2.2-rc.5", "official": true, "kind": "stock" },
+        { "name": "dsh-design-workbench", "version": "0.11.0", "official": false, "kind": "local", "source": "link:C:/Users/zhaox/Documents/设计工作台/design-workbench" },
+        { "name": "@local/sticky-board", "version": "0.16.0", "official": false, "kind": "local", "source": "link:C:/Users/zhaox/Documents/DSH_anything/sticky-board" }
+      ],
+      "availableOptionalBundles": [
+        "dsh-experimental-inspector-profile",
+        "dsh-experimental-voice-input-bundle",
+        "dsh-experimental-cot-translation-bundle",
+        "dsh-experimental-badge-skill-bundle",
+        "dsh-experimental-ralph-bundle",
+        "dsh-experimental-session-titles-bundle",
+        "dsh-experimental-terminal-bundle",
+        "dsh-experimental-liveshare",
+        "dsh-experimental-session-search",
+        "dsh-experimental-tool-worktree",
+        "dsh-experimental-forge-bundle",
+        "dsh-deepseek-chat-import",
+        "dsh-personalized-recommendations",
+        "dsh-cua-bundle",
+        "dsh-subagent-claude-code"
+      ]
+    }
+  },
+  "pluginMarket": {
+    "indexUrl": "https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json",
+    "indexTitle": "Awesome DSH Plugin",
+    "totalEntries": 6487,
+    "notes": "totalEntries 为 2026-11-22 快照；市场每天变化，引用前请刷新。"
+  },
+  "adjacentPlugins": [
+    {
+      "name": "dsh-project-kanban",
+      "repo": "https://github.com/StruggleYang/dsh-project-kanban",
+      "version": "0.8.3",
+      "published": "2026-08-16",
+      "category": "workflow",
+      "summary": "按 workspace 的项目看板；9 个 kanban_* 工具，磁盘持久化、撤销、模板。",
+      "borrow": "工具命名与撤销语义；模板设计",
+      "notBorrow": "每 workspace 单板的数据模型（我们支持多板）"
+    },
+    {
+      "name": "dsh-kanban-flow",
+      "repo": "https://github.com/thomasvvugt/dsh-kanban-flow",
+      "version": "0.2.1",
+      "published": "2026-09-26",
+      "category": "workflow",
+      "summary": "任务驱动 agent session 的看板（Backlog → To Do → In Progress → Review → Done）。",
+      "borrow": "列语义与状态机约束",
+      "notBorrow": "每任务一个 agent session（超出本地插件边界）"
+    },
+    {
+      "name": "@goodandready/dsh-kanban",
+      "repo": "https://github.com/GooDAnDReaDY/dsh-kanban",
+      "version": "0.2.43",
+      "published": "2026-11-14",
+      "category": "workflow",
+      "summary": "Gitea 支撑的看板，列工作流 + 每任务独立 agent session。",
+      "borrow": "外部数据源适配思路",
+      "notBorrow": "依赖 Gitea（我们坚持本地单 JSON）"
+    },
+    {
+      "name": "dsh-team-kanban",
+      "repo": "https://github.com/rongyishuaige7/dsh-team-kanban",
+      "version": "0.5.6",
+      "published": "2026-11-17",
+      "category": "ui",
+      "summary": "右侧栏三列看板，数据来自 DSH 原生 agentTeam 投影 DAG。",
+      "borrow": "侧栏容器内的紧凑布局；投影数据只读渲染",
+      "notBorrow": "与 agent 编排强绑定"
+    },
+    {
+      "name": "dsh-agent-board",
+      "repo": "https://github.com/PPawnsir/task-board-plugin",
+      "version": "1.9.10",
+      "published": "2026-11-19",
+      "category": "workflow",
+      "summary": "把任务分派给一次性 worker/verifier 子 agent，带依赖调度与文件级锁。",
+      "borrow": "任务依赖 / 验收字段的表达",
+      "notBorrow": "子 agent 编排（不属于本插件职责）"
+    },
+    {
+      "name": "dsh-session-kanban",
+      "repo": "https://github.com/Thunderunruly/session-kanban",
+      "version": "1.2.0",
+      "published": "2026-11-17",
+      "category": "ui",
+      "summary": "左侧栏的会话看板：每个会话的当前工作、todo 与进度，可搜索概览热图。",
+      "borrow": "热图/概览的密度设计",
+      "notBorrow": "以会话为卡片主体（我们是便签/任务）"
+    },
+    {
+      "name": "dsh-super-kanban",
+      "repo": "https://github.com/topmindspace/dsh-super-kanban",
+      "version": "0.10.5",
+      "published": "2026-11-17",
+      "category": "workflow",
+      "summary": "把会话转成任务的 AI 项目板，跟踪进度、阻塞、验收标准与交付物。",
+      "borrow": "验收标准 / 交付物字段的展示层次",
+      "notBorrow": "会话<->任务自动映射的复杂度"
+    },
+    {
+      "name": "dsh-local-board",
+      "repo": "https://github.com/Finalbingo/dsh-local-board",
+      "version": "1.5.6",
+      "published": "2026-11-13",
+      "category": "ui",
+      "summary": "本地优先的三列 todo 板，按项目分组，全部存进一个 Markdown 文件。",
+      "borrow": "单文件可读存储 + 备份提示",
+      "notBorrow": "Markdown 作为权威数据源（结构化操作会退化）"
+    },
+    {
+      "name": "@vfvrpq/dsh-sticky-notes",
+      "repo": "https://github.com/439436269-ctrl/dsh-sticky-notes",
+      "version": "0.2.1",
+      "published": "2026-11-07",
+      "category": "ui",
+      "summary": "侧栏平铺便签板：密度、颜色、置顶、搜索、颜色筛选、回收站恢复、Markdown。",
+      "borrow": "密度档位与颜色筛选的交互细节",
+      "notBorrow": "侧栏内平铺（我们主面板自由摆放）"
+    },
+    {
+      "name": "dsh-plugin-sticky-wall",
+      "repo": "https://github.com/zmengle/dsh-plugin-sticky-wall",
+      "version": "1.8.0",
+      "published": "2026-11-06",
+      "category": "ui",
+      "summary": "侧栏便签墙：颜色、清单、折叠、回收站抽屉恢复、拖拽缩放、5 个 sticky_wall_* 工具。",
+      "borrow": "工具集划分（墙级 vs 便签级）",
+      "notBorrow": "侧栏形态；无看板联动"
+    },
+    {
+      "name": "dsh-sticky-wall",
+      "repo": "https://github.com/hahajing233-source/dsh-sticky-wall",
+      "version": "1.2.0",
+      "published": "2026-11-08",
+      "category": "ui",
+      "summary": "纸色/墨色/字体/字号可选、图钉/胶带/回形针装饰的便签墙。",
+      "borrow": "视觉风格化的可选项分层",
+      "notBorrow": "装饰品类过多会稀释信息密度"
+    },
+    {
+      "name": "@zzerx/dsh-plugin-notes",
+      "repo": "https://github.com/0x7A7A6572/dsh-forge-studio",
+      "version": "0.6.0",
+      "published": "2026-10-28",
+      "category": "ui",
+      "summary": "Markdown 便签面板：自动保存、颜色、图片粘贴、任务列表渲染。",
+      "borrow": "自动保存状态提示",
+      "notBorrow": "单文档 Markdown 模型"
+    },
+    {
+      "name": "dsh-sticky-notes",
+      "repo": "https://github.com/zmm863-commits/dsh-sticky-notes",
+      "version": "1.0.3",
+      "published": "2026-10-04",
+      "category": "ui",
+      "summary": "彩色标签便签 + 定时提醒 + 密码保护。",
+      "borrow": "定时提醒的数据字段设计",
+      "notBorrow": "密码保护（本地单用户场景收益低）"
+    },
+    {
+      "name": "dsh-sticky-note-panel",
+      "repo": "https://github.com/stallenlu/dsh-sticky-notes",
+      "version": "1.0.11",
+      "published": "2026-11-11",
+      "category": "ui",
+      "summary": "可拖动浮窗 + 侧栏整页两种形态，Markdown 预览、图片粘贴、可配置。",
+      "borrow": "浮窗/整页双形态的入口设计",
+      "notBorrow": "两套渲染路径的维护成本"
+    },
+    {
+      "name": "dsh-quick-notes",
+      "repo": "https://github.com/LittleLemonJam/dsh-quick-notes",
+      "version": "1.0.0",
+      "published": "2026-11-02",
+      "category": "ui",
+      "summary": "浮层便签本：目录、文本编辑、图片粘贴、本地持久化。",
+      "borrow": "极低录入成本（打开即可记）",
+      "notBorrow": "无看板/工具能力"
+    }
+  ],
+  "nonDshReferences": [
+    { "name": "Obsidian Kanban", "watch": "列内快速录入、卡片内 checklist 编辑手感" },
+    { "name": "Excalidraw / tldraw", "watch": "拖动/缩放的跟手感、低端设备降级策略" },
+    { "name": "Focalboard / Planka / Vikunja", "watch": "列语义、排序持久化、筛选信息架构" },
+    { "name": "Memos / Anytype", "watch": "轻量便签录入、本地优先存储与备份" }
+  ],
+  "localSiblingProjects": [
+    {
+      "name": "dsh-design-workbench",
+      "version": "0.11.0",
+      "source": "C:/Users/zhaox/Documents/设计工作台/design-workbench",
+      "note": "同一宿主下的重型 Client 面板：可参考其主题/Token/撤销/弹窗实现与 Client 体量组织方式。"
+    },
+    {
+      "name": "@local/sticky-board",
+      "version": "0.16.0",
+      "repository": "https://github.com/moluz/sticky-board",
+      "note": "本项目：便签墙 + 任务板，墙↔板联动、14 个模型工具、跟随宿主明暗。"
+    }
+  ]
+}
