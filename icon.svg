@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sticky wall and task board">
+  <rect x="4" y="8" width="56" height="48" rx="6" fill="#1f2430"/>
+  <rect x="9" y="14" width="14" height="36" rx="2.5" fill="#2b3242"/>
+  <rect x="25" y="14" width="14" height="36" rx="2.5" fill="#2b3242"/>
+  <rect x="41" y="14" width="14" height="36" rx="2.5" fill="#2b3242"/>
+  <rect x="11" y="17" width="10" height="9" rx="1.5" fill="#f2b544"/>
+  <rect x="11" y="29" width="10" height="6" rx="1.5" fill="#e4e8f0" opacity="0.8"/>
+  <rect x="27" y="17" width="10" height="6" rx="1.5" fill="#7ec8a8"/>
+  <rect x="27" y="26" width="10" height="9" rx="1.5" fill="#e4e8f0" opacity="0.8"/>
+  <rect x="43" y="17" width="10" height="6" rx="1.5" fill="#e4e8f0" opacity="0.8"/>
+  <path d="M48.5 31.5l3 3 5.5-5.5" fill="none" stroke="#6fa8ff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="43" y="40" width="10" height="6" rx="1.5" fill="#6fa8ff" opacity="0.45"/>
+</svg>

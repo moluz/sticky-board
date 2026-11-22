@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Sticky wall and task board",
+    "description": "A freely arranged sticky wall and a drag-and-drop task board sharing one dataset: turn a note into a task in one click, or a task into a note. Data stays on this machine."
+  }
+}

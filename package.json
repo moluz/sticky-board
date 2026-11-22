@@ -1,0 +1,59 @@
+{
+  "name": "@local/sticky-board",
+  "version": "0.16.0",
+  "private": false,
+  "license": "MIT",
+  "author": "zhaox",
+  "description": "便签墙 + 任务板：自由摆放的便签墙与拖拽看板共用同一份数据，支持墙↔板互转与模型工具",
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib",
+    "cordis.patch.yml",
+    "locale",
+    "icon.svg",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.4 <0.3.0-0"
+  },
+  "scripts": {
+    "test": "node --test",
+    "smoke": "node scripts/smoke.mjs",
+    "release": "npm pack --pack-destination releases",
+    "lint:client": "node scripts/lint-client.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "pack:check": "node scripts/pack-check.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moluz/sticky-board.git"
+  },
+  "homepage": "https://github.com/moluz/sticky-board#readme",
+  "bugs": {
+    "url": "https://github.com/moluz/sticky-board/issues"
+  }
+}

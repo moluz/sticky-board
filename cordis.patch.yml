@@ -1,0 +1,6 @@
+# @local/sticky-board: one Host row. The Client half is loaded through the
+# package's `dsh.client` declaration, so the patch only names the plugin row.
+- insert:
+    - id: sticky-board
+      name: '@local/sticky-board'
+      config: {}
