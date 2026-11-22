@@ -47,6 +47,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 - 拖动（拖标题栏；移动走 `transform` 合成层，拖拽期间暂停轮询，**无残影/闪烁**）、**右下角拖拽同时调宽和高**（高度未拖过时跟随内容）、折叠/展开
 - 双击正文进入编辑；`- [ ] ` / `- [x] ` 开头是待办行，`- ` 是列表，`1. ` 是有序列表；编辑框内 `Ctrl+Enter` 保存、`Esc` 取消
 - 7 种纸色、置顶、删除（进回收站）、一键「转为任务」
+- **墙面筛选**：按纸色多选 + 「只看置顶」；筛选时禁用便签拖动
+- **密度档位**：紧凑 / 标准 / 宽松三档（设置项 `wallDensity`），工具栏按钮循环切换并持久化
 - **点选**后显示蓝色描边（固定色 `#2f6fed`，不随主题变白），配合 `Delete` 快速删除
 - **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 选一段；选中后表头出现蓝底操作条「已选 N / **●● 批量改色** / 置顶 / 转为任务 / 删除」，`Delete` 批量移入回收站（toast 里可撤销）
 
@@ -56,6 +58,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 - 三列起步（待办 / 进行中 / 完成），可加列、改名、删列（列内卡片自动迁到第一列）；**自定义列重启后仍在**
 - **拖动列头左侧 `⠿` 手柄可调整列顺序**（拖到哪一列就占据那一列的位置：向右拖 2 格就是移 2 格）；列内卡片拖拽换列/排序（HTML5 拖放，松手即保存）；**拖到看板左右边缘自动横向滚动、拖到长列上下边缘自动纵向滚动**
 - 优先级色条（P0–P3）、截止日期（过期标黄）、标签、完成勾选
+- **阻塞**：抽屉里勾选「阻塞」并填原因（≤200 字），卡片显示红色「阻塞」胶囊，筛选条可「只看阻塞」
+- **统计条**：看板 tab 下方一行——各列计数、`P0+P1`、逾期、阻塞；点后三者即套用对应筛选
 - **拖动时有插入指示线**：悬停卡片显示其上方蓝线（插到它前面），悬停列空白处显示末尾蓝线
 - **筛选条**：优先级 P0–P3 多选、只看未完成、只看逾期、按标签子串过滤；按钮上显示生效条件数，弹出层底部可「清除筛选」。**筛选生效时禁用卡片拖动**（过滤后的列表算插入位会错位）
 - **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 在**同一列内**连选（跨列时退回单选，不跨列）；选中后表头出现一组蓝底操作条「已选 N / 完成 / 移到 ▾ / 删除」（「移到」是自绘弹出菜单，列出各列），`Delete` 批量移入回收站（toast 可撤销）
@@ -67,6 +71,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 **搜索**：**服务端过滤**（输入防抖 220ms，Host 按 `q` 只回匹配的便签与卡片，计数仍是全局值）；搜索期间禁用全部拖拽（便签、卡片、列、看板 tab），避免在过滤后的列表上算错位置。
 
 **性能**：6 秒轮询会比对 `rev`，文档没变就跳过渲染；拖动期间暂停轮询；拖动便签只写 `transform`，不触发 React 重渲染。
+
+**备份**：每天首次写入前自动把 `board.json` 复制为 `board.json.bak-YYYY-MM-DD`，保留最近 **7 份**；恢复时把对应 `.bak` 文件改回 `board.json` 即可。
 
 **整理 / 备份**
 
@@ -105,7 +111,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 | `sticky_board_get` | 全局状态：便签/任务数量、看板列表与当前活动板、各列数量、数据文件路径 |
 | `sticky_board_manage` | 看板管理：`list` / `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete`（任务工具总是作用于当前活动板） |
 | `sticky_note_list` / `sticky_note_create` / `sticky_note_update` / `sticky_note_remove` | 便签的查、建、改、删（默认软删） |
-| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist`（`{ text, done }` 数组，整组替换），列表输出带 `☑ d/n` 进度 |
+| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist`，`update` 支持 `blocked` / `blockedReason`；列表输出带 `☑ d/n` 进度与 `blocked` 标记 |
 | `sticky_note_to_task` / `sticky_task_to_note` | 墙 ↔ 板互转，双向写入关联 id |
 | `sticky_note_sync_to_task` | 单向把便签内容推到关联任务（保留任务优先级/标签/截止/列） |
 
@@ -113,7 +119,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 ## 数据
 
-单 JSON 文档，**`version: 2`**（v1 文档读入即迁移：卡片补 `checklist: []`，下次写入落 v2）：
+单 JSON 文档，**`version: 3`**（v1/v2 文档读入即迁移：卡片补 `checklist: []` / `blocked: false`，settings 补 `lastBackupAt`，下次写入落 v3）：
 
 ```jsonc
 {
@@ -127,9 +133,10 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
                "columns": [{ "id": "todo", "title": "待办", "order": 0 }, …],
                "cards": [{ "id": "card-…", "title": "", "note": "", "columnId": "todo", "order": 0,
                            "priority": "P2", "labels": [], "checklist": [{ "id": "item-…", "text": "子项", "done": false }],
+                           "blocked": false, "blockedReason": null,
                            "dueDate": null, "done": false, "noteId": null,
                            "trashed": false, "deletedAt": null, "rev": 1, "createdAt": 0, "updatedAt": 0 }] }],
-  "settings": { "activeView": "wall", "wallDensity": "auto", "activeBoardId": "board-main" },
+  "settings": { "activeView": "wall", "wallDensity": "auto", "activeBoardId": "board-main", "lastBackupAt": "2026-11-22" },
   "updatedAt": 0
 }
 ```
@@ -162,8 +169,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ## 开发与验证
 
 ```powershell
-npm test              # node --test：57 例（model/store + Client 渲染/交互/主题/弹窗 + lint 自查）
-npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（32 步）
+npm test              # node --test：62 例（model/store + Client 渲染/交互/主题/弹窗 + lint 自查）
+npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（33 步）
 npm run lint:client   # hooks 依赖顺序自查（防「面板空白」类渲染崩溃）
 npm run check:contrast # 明暗两套装饰色的 WCAG 对比度守卫
 npm run pack:check    # 校验 npm pack 会带上的文件（15 个）

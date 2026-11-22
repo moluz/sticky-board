@@ -67,6 +67,17 @@ window.__ModuleLoader__.load({
       'label.openOnly': '只看未完成',
       'label.overdueOnly': '只看逾期',
       'placeholder.labelFilter': '按标签过滤',
+      'label.blocked': '阻塞',
+      'placeholder.blockReason': '阻塞原因',
+      'stats.priority': 'P0+P1',
+      'stats.overdue': '逾期',
+      'stats.blocked': '阻塞',
+      'label.color': '纸色',
+      'label.pinnedOnly': '只看置顶',
+      'action.density': '密度',
+      'density.auto': '密度 自动',
+      'density.compact': '密度 紧凑',
+      'density.cozy': '密度 宽松',
       'action.menu': '更多',
       'action.renameBoard': '重命名看板',
       'confirm.importReplace': '当前全部便签、任务与看板会被这份文件覆盖。',
@@ -197,6 +208,17 @@ window.__ModuleLoader__.load({
       'label.openOnly': 'Open only',
       'label.overdueOnly': 'Overdue only',
       'placeholder.labelFilter': 'Filter by label',
+      'label.blocked': 'Blocked',
+      'placeholder.blockReason': 'Blocked reason',
+      'stats.priority': 'P0+P1',
+      'stats.overdue': 'Overdue',
+      'stats.blocked': 'Blocked',
+      'label.color': 'Paper colour',
+      'label.pinnedOnly': 'Pinned only',
+      'action.density': 'Density',
+      'density.auto': 'Density auto',
+      'density.compact': 'Density compact',
+      'density.cozy': 'Density cozy',
       'action.menu': 'More',
       'action.renameBoard': 'Rename board',
       'confirm.importReplace': 'Every note, task and board will be replaced by this file.',
@@ -357,6 +379,15 @@ window.__ModuleLoader__.load({
 .sb-card-title{font-size:12px;line-height:1.45;word-break:break-word}
 .sb-card-meta{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .sb-chip{font-size:10px;line-height:15px;padding:0 5px;border-radius:4px;background:var(--dsw-alias-bg-base,#0f1218);color:var(--dsw-alias-label-secondary,#93a1bb);border:1px solid var(--dsw-alias-border-l2,#232a36);white-space:nowrap}
+.sb-chip[data-kind="danger"]{color:var(--sb-danger);border-color:color-mix(in srgb,var(--sb-danger) 55%,transparent);background:color-mix(in srgb,var(--sb-danger) 14%,transparent);font-weight:600}
+.sb-stats{flex:none;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 12px 0}
+.sb-stat{cursor:pointer;border:1px solid var(--dsw-alias-border-l2,#232a36);background:transparent;border-radius:6px;padding:1px 8px;font:inherit;font-family:inherit;font-size:11px;color:var(--dsw-alias-label-secondary,#93a1bb)}
+.sb-stat:hover{color:var(--dsw-alias-label-primary,#e6edf7)}
+.sb-stat[data-on="true"]{border-color:var(--sb-accent);color:var(--sb-accent);background:color-mix(in srgb,var(--sb-accent) 14%,transparent)}
+.sb-swatch{width:18px;height:18px;border-radius:4px;border:1px solid rgba(0,0,0,.25);cursor:pointer;padding:0}
+.sb-swatch[data-on="true"]{outline:2px solid var(--sb-accent);outline-offset:1px}
+.sb-root[data-sb-density="compact"] .sb-note-body{font-size:11px;line-height:1.4;padding:1px 7px 6px}
+.sb-root[data-sb-density="cozy"] .sb-note-body{font-size:13px;line-height:1.7;padding:4px 12px 10px}
 .sb-chip[data-kind="warn"]{color:var(--dsw-alias-state-warn-primary,var(--sb-warn));border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,var(--sb-warn)) 40%,transparent)}
 .sb-chip[data-kind="brand"]{color:var(--dsw-alias-brand-primary,#4f8cff);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f8cff) 40%,transparent)}
 .sb-check{flex:none;margin:2px 0 0;accent-color:var(--dsw-alias-state-success-primary,#3f9f6f)}
@@ -1102,6 +1133,9 @@ window.__ModuleLoader__.load({
               'div',
               { className: 'sb-card-meta' },
               card.priority !== 'P2' ? h('span', { className: 'sb-chip' }, card.priority) : null,
+              card.blocked === true
+                ? h('span', { className: 'sb-chip', 'data-kind': 'danger', title: card.blockedReason ?? t('label.blocked') }, t('label.blocked'))
+                : null,
               card.dueDate !== null && card.dueDate !== undefined
                 ? h(
                     'span',
@@ -1651,11 +1685,13 @@ window.__ModuleLoader__.load({
         const [preview, setPreview] = useState(false);
         const [savedAt, setSavedAt] = useState(null);
         const [newItem, setNewItem] = useState('');
+        const [blockReason, setBlockReason] = useState(card.blockedReason ?? '');
 
         useEffect(() => {
           setTitle(card.title);
           setBody(card.note ?? '');
           setLabels((card.labels ?? []).join(', '));
+          setBlockReason(card.blockedReason ?? '');
         }, [card.id, card.rev]);
 
         /** Save one field; the head shows when the Host acknowledged it. */
@@ -1853,6 +1889,37 @@ window.__ModuleLoader__.load({
                   h(Btn, { onClick: addItem, disabled: newItem.trim() === '' }, t('action.add')),
                 ),
               ),
+            ),
+            h(
+              'div',
+              { className: 'sb-field' },
+              h(
+                'div',
+                { className: 'sb-field-row' },
+                h('span', { className: 'sb-field-label' }, t('label.blocked')),
+                h('input', {
+                  type: 'checkbox',
+                  className: 'sb-check',
+                  checked: card.blocked === true,
+                  onChange: (event) => {
+                    const next = event.target.checked === true;
+                    const reason = next && blockReason.trim() !== '' ? blockReason.trim() : null;
+                    void save({ blocked: next, blockedReason: next ? reason : null });
+                  },
+                }),
+              ),
+              card.blocked === true
+                ? h('input', {
+                    className: 'sb-input',
+                    value: blockReason,
+                    placeholder: t('placeholder.blockReason'),
+                    onChange: (event) => setBlockReason(event.target.value),
+                    onBlur: () => {
+                      const reason = blockReason.trim();
+                      void save({ blocked: true, blockedReason: reason === '' ? null : reason });
+                    },
+                  })
+                : null,
             ),
             linkedNote !== undefined
               ? h(
@@ -2169,7 +2236,10 @@ window.__ModuleLoader__.load({
         const [moveMenuOpen, setMoveMenuOpen] = useState(false);
         const [notePaletteOpen, setNotePaletteOpen] = useState(false);
         const [filterOpen, setFilterOpen] = useState(false);
-        const [filters, setFilters] = useState({ priorities: [], openOnly: false, overdueOnly: false, label: '' });
+        const [filters, setFilters] = useState({ priorities: [], openOnly: false, overdueOnly: false, blockedOnly: false, label: '' });
+        const [wallFilterOpen, setWallFilterOpen] = useState(false);
+        const [noteColors, setNoteColors] = useState([]);
+        const [pinnedOnly, setPinnedOnly] = useState(false);
         const rootRef = useRef(null);
         const wallRef = useRef(null);
         const searchRef = useRef(null);
@@ -2199,6 +2269,7 @@ window.__ModuleLoader__.load({
           };
         }, []);
         const filterRef = useRef(null);
+        const wallFilterRef = useRef(null);
         const fileRef = useRef(null);
         const queryRef = useRef('');
         const importModeRef = useRef('merge');
@@ -2352,12 +2423,24 @@ window.__ModuleLoader__.load({
           return () => window.removeEventListener('pointerdown', close);
         }, [filterOpen]);
 
+        // Close the wall colour filter the same way.
+        useEffect(() => {
+          if (!wallFilterOpen) return undefined;
+          const close = (event) => {
+            if (wallFilterRef.current !== null && wallFilterRef.current.contains(event.target)) return;
+            setWallFilterOpen(false);
+          };
+          window.addEventListener('pointerdown', close);
+          return () => window.removeEventListener('pointerdown', close);
+        }, [wallFilterOpen]);
+
         const notes = data?.notes ?? [];
         const board = data?.board ?? null;
         const boards = data?.boards ?? [];
         const activeBoardId = data?.activeBoardId ?? board?.id ?? '';
         const allCards = board?.cards ?? [];
         const counts = data?.counts ?? { notes: 0, cards: 0, pinned: 0, notesTrash: 0, cardsTrash: 0 };
+        const densityValue = data?.settings?.wallDensity ?? 'auto';
         const needle = query.trim().toLowerCase();
 
         const match = useCallback((title, text) => {
@@ -2365,9 +2448,15 @@ window.__ModuleLoader__.load({
           return String(title ?? '').toLowerCase().includes(needle) || String(text ?? '').toLowerCase().includes(needle);
         }, [needle]);
 
-        const visibleNotes = notes.filter((note) =>
-          trashMode ? note.trashed === true : note.trashed !== true && match(titleOf(note), note.text ?? linesToText(note)),
-        );
+        const colorFilterActive = noteColors.length > 0 || pinnedOnly === true;
+        const wallFilterCount = noteColors.length + (pinnedOnly === true ? 1 : 0);
+        const visibleNotes = notes.filter((note) => {
+          if (trashMode ? note.trashed !== true : note.trashed === true) return false;
+          if (!match(titleOf(note), note.text ?? linesToText(note))) return false;
+          if (noteColors.length > 0 && !noteColors.includes(note.color)) return false;
+          if (pinnedOnly === true && note.pinned !== true) return false;
+          return true;
+        });
         const visibleCards = allCards.filter((card) =>
           trashMode ? card.trashed === true : card.trashed !== true && match(card.title, card.note),
         );
@@ -2377,6 +2466,7 @@ window.__ModuleLoader__.load({
           filters.priorities.length +
           (filters.openOnly === true ? 1 : 0) +
           (filters.overdueOnly === true ? 1 : 0) +
+          (filters.blockedOnly === true ? 1 : 0) +
           (filters.label.trim() !== '' ? 1 : 0);
         const filtersActive = filterCount > 0;
         const labelNeedle = filters.label.trim().toLowerCase();
@@ -2386,11 +2476,26 @@ window.__ModuleLoader__.load({
               if (filters.priorities.length > 0 && !filters.priorities.includes(card.priority)) return false;
               if (filters.openOnly === true && card.done === true) return false;
               if (filters.overdueOnly === true && !isOverdue(card.dueDate)) return false;
+              if (filters.blockedOnly === true && card.blocked !== true) return false;
               if (labelNeedle !== '' && !(card.labels ?? []).some((label) => label.toLowerCase().includes(labelNeedle))) {
                 return false;
               }
               return true;
             });
+        const statPriority = allCards.filter((card) => card.trashed !== true && (card.priority === 'P0' || card.priority === 'P1')).length;
+        const statOverdue = allCards.filter((card) => card.trashed !== true && isOverdue(card.dueDate)).length;
+        const statBlocked = allCards.filter((card) => card.trashed !== true && card.blocked === true).length;
+
+        /** Toggle one paper colour in the wall filter. */
+        function toggleNoteColor(color) {
+          setNoteColors((current) => (current.includes(color) ? current.filter((entry) => entry !== color) : [...current, color]));
+        }
+
+        /** Clear the wall filter. */
+        function resetWallFilter() {
+          setNoteColors([]);
+          setPinnedOnly(false);
+        }
 
         /** Toggle one priority in the filter popover. */
         function togglePriorityFilter(priority) {
@@ -3116,6 +3221,78 @@ window.__ModuleLoader__.load({
           view === 'wall' && !trashMode
             ? h(Btn, { onClick: tidyWall, title: t('action.tidy') }, t('action.tidy'))
             : null,
+          view === 'wall' && !trashMode
+            ? h(
+                Btn,
+                {
+                  onClick: () => {
+                    const order = ['auto', 'compact', 'cozy'];
+                    const current = densityValue;
+                    const next = order[(order.indexOf(current) + 1) % order.length];
+                    void call('settings.update', { patch: { wallDensity: next } });
+                  },
+                  title: t('action.density'),
+                },
+                (densityValue === 'compact' ? t('density.compact') : densityValue === 'cozy' ? t('density.cozy') : t('density.auto')),
+              )
+            : null,
+          view === 'wall' && !trashMode
+            ? h(
+                'div',
+                { className: 'sb-menu-wrap', ref: wallFilterRef },
+                h(
+                  Btn,
+                  { onClick: () => setWallFilterOpen((on) => !on), primary: colorFilterActive || wallFilterOpen, title: t('action.filter') },
+                  wallFilterCount > 0 ? `${t('action.filter')} ${wallFilterCount}` : t('action.filter'),
+                ),
+                wallFilterOpen
+                  ? h(
+                      'div',
+                      { className: 'sb-menu sb-filter' },
+                      h('span', { className: 'sb-filter-title' }, t('label.color')),
+                      h(
+                        'div',
+                        { className: 'sb-filter-row' },
+                        COLOR_ORDER.map((color) =>
+                          h('button', {
+                            key: color,
+                            type: 'button',
+                            className: 'sb-swatch',
+                            'data-on': noteColors.includes(color) ? 'true' : undefined,
+                            style: { background: PAPERS[color] },
+                            title: color,
+                            onClick: () => toggleNoteColor(color),
+                          }),
+                        ),
+                      ),
+                      h(
+                        'label',
+                        { className: 'sb-filter-check' },
+                        h('input', {
+                          type: 'checkbox',
+                          className: 'sb-check',
+                          checked: pinnedOnly,
+                          onChange: () => setPinnedOnly((on) => !on),
+                        }),
+                        h('span', null, t('label.pinnedOnly')),
+                      ),
+                      h(
+                        'button',
+                        {
+                          type: 'button',
+                          className: 'sb-menu-item',
+                          disabled: !colorFilterActive,
+                          onClick: () => {
+                            resetWallFilter();
+                            setWallFilterOpen(false);
+                          },
+                        },
+                        t('action.clearFilters'),
+                      ),
+                    )
+                  : null,
+              )
+            : null,
           view === 'wall' && !trashMode && noteSelection.size > 0
             ? h(
                 'div',
@@ -3222,6 +3399,17 @@ window.__ModuleLoader__.load({
                           onChange: () => setFilters((current) => ({ ...current, overdueOnly: current.overdueOnly !== true })),
                         }),
                         h('span', null, t('label.overdueOnly')),
+                      ),
+                      h(
+                        'label',
+                        { className: 'sb-filter-check' },
+                        h('input', {
+                          type: 'checkbox',
+                          className: 'sb-check',
+                          checked: filters.blockedOnly,
+                          onChange: () => setFilters((current) => ({ ...current, blockedOnly: current.blockedOnly !== true })),
+                        }),
+                        h('span', null, t('label.blocked')),
                       ),
                       h('input', {
                         className: 'sb-input',
@@ -3337,6 +3525,43 @@ window.__ModuleLoader__.load({
             'div',
             { className: 'sb-boardwrap' },
             h(BoardTabs, { boards, activeId: activeBoardId, call, dragDisabled: needle !== '', onDelete: requestBoardDelete }),
+            h(
+              'div',
+              { className: 'sb-stats' },
+              (board?.columns ?? []).map((column) =>
+                h('span', { key: column.id, className: 'sb-stat' }, `${column.title} ${counts.byColumn?.[column.id] ?? 0}`),
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'sb-stat',
+                  'data-on': filters.priorities.length > 0 ? 'true' : undefined,
+                  onClick: () => setFilters((current) => ({ ...current, priorities: current.priorities.length > 0 ? [] : ['P0', 'P1'] })),
+                },
+                `${t('stats.priority')} ${statPriority}`,
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'sb-stat',
+                  'data-on': filters.overdueOnly === true ? 'true' : undefined,
+                  onClick: () => setFilters((current) => ({ ...current, overdueOnly: current.overdueOnly !== true })),
+                },
+                `${t('stats.overdue')} ${statOverdue}`,
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'sb-stat',
+                  'data-on': filters.blockedOnly === true ? 'true' : undefined,
+                  onClick: () => setFilters((current) => ({ ...current, blockedOnly: current.blockedOnly !== true })),
+                },
+                `${t('stats.blocked')} ${statBlocked}`,
+              ),
+            ),
             h(BoardView, {
               board,
               cards: shownCards,
@@ -3356,7 +3581,7 @@ window.__ModuleLoader__.load({
 
         return h(
           'div',
-          { className: 'sb-root', ref: rootRef, tabIndex: -1, onKeyDown, 'data-sb-scheme': scheme },
+          { className: 'sb-root', ref: rootRef, tabIndex: -1, onKeyDown, 'data-sb-scheme': scheme, 'data-sb-density': densityValue },
           h('input', {
             ref: fileRef,
             type: 'file',

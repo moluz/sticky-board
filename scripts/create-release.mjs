@@ -12,7 +12,7 @@ import path from 'node:path';
 
 const OWNER = 'moluz';
 const REPO = 'sticky-board';
-const VERSION = '0.16.0';
+const VERSION = JSON.parse(readFileSync(path.join(process.cwd(), 'package.json'), 'utf8')).version;
 const TAG = `v${VERSION}`;
 const TOKEN = process.env.GH_TOKEN;
 if (!TOKEN) throw new Error('GH_TOKEN missing');

@@ -32,8 +32,8 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
  * 常量 / 空文档
  * ------------------------------------------------------------------ */
 
-test('常量导出符合数据模型 v2', () => {
-  assert.equal(SCHEMA_VERSION, 2);
+test('常量导出符合数据模型 v3', () => {
+  assert.equal(SCHEMA_VERSION, 3);
   assert.deepEqual(NOTE_COLORS, ['amber', 'rose', 'mint', 'sky', 'violet', 'slate', 'plain']);
   assert.deepEqual(LINE_KINDS, ['text', 'todo', 'ul', 'ol']);
   assert.deepEqual(PRIORITIES, ['P0', 'P1', 'P2', 'P3']);
@@ -42,7 +42,7 @@ test('常量导出符合数据模型 v2', () => {
 test('emptyDocument 结构完整且是全新对象', () => {
   const doc = emptyDocument();
   assert.deepEqual(doc, {
-    version: 2,
+    version: 3,
     rev: 0,
     notes: [],
     boards: [
@@ -57,7 +57,7 @@ test('emptyDocument 结构完整且是全新对象', () => {
         cards: [],
       },
     ],
-    settings: { activeView: 'wall', wallDensity: 'auto', activeBoardId: 'board-main' },
+    settings: { activeView: 'wall', wallDensity: 'auto', activeBoardId: 'board-main', lastBackupAt: null },
     updatedAt: 0,
   });
 
@@ -110,7 +110,7 @@ test('normalizeDocument 补齐缺失字段', () => {
     boards: [{ cards: [{}] }],
   });
 
-  assert.equal(doc.version, 2);
+  assert.equal(doc.version, 3);
   assert.equal(doc.rev, 0);
   assert.equal(doc.notes.length, 1);
   const note = doc.notes[0];
@@ -351,7 +351,7 @@ test('normalizeDocument 不修改入参', () => {
   const before = clone(raw);
   const first = normalizeDocument(raw);
   assert.deepEqual(raw, before);
-  assert.equal(first.version, 2);
+  assert.equal(first.version, 3);
   assert.equal(first.rev, 5);
   assert.equal(first.notes[0].lines.length, 0);
   assert.equal(first.boards[0].columns[0].title, 'T');
@@ -504,13 +504,15 @@ test('cardSummary 带上检查项进度', () => {
   assert.doesNotMatch(cardSummary(plain), /☑/);
 });
 
-test('旧版 v1 文档读入即迁移到 v2，卡片补 checklist', () => {
+test('旧版 v1 文档读入即迁移到 v3，卡片补 checklist/阻塞默认值', () => {
   const doc = normalizeDocument({
     version: 1,
     boards: [{ id: 'board-main', cards: [{ id: 'card-old', title: '旧卡' }] }],
   });
-  assert.equal(doc.version, 2);
+  assert.equal(doc.version, 3);
   assert.deepEqual(doc.boards[0].cards[0].checklist, []);
+  assert.equal(doc.boards[0].cards[0].blocked, false);
+  assert.equal(doc.boards[0].cards[0].blockedReason, null);
   const kept = normalizeDocument({
     version: 2,
     boards: [{ id: 'board-main', cards: [{ id: 'card-new', checklist: [{ text: '保留', done: true }] }] }],
@@ -836,4 +838,28 @@ test('cardSummary 格式、标记与 120 字截断', () => {
   const summary = cardSummary(trashed);
   assert.ok(summary.includes(' [trash] '));
   assert.equal(summary.split(' | ').at(-1).length, 120);
+});
+
+test('normalizeCard 阻塞字段：默认 false、原因去空白并截断 200 字', () => {
+  const plain = normalizeCard({}, 1);
+  assert.equal(plain.blocked, false);
+  assert.equal(plain.blockedReason, null);
+
+  const blocked = normalizeCard({ blocked: true, blockedReason: '  等外部 API  ' }, 1);
+  assert.equal(blocked.blocked, true);
+  assert.equal(blocked.blockedReason, '等外部 API');
+
+  const long = normalizeCard({ blocked: true, blockedReason: 'x'.repeat(400) }, 1);
+  assert.equal(long.blockedReason.length, 200);
+
+  const blank = normalizeCard({ blocked: true, blockedReason: '   ' }, 1);
+  assert.equal(blank.blockedReason, null);
+});
+
+test('normalizeSettings 记录每日备份日期（非法值置空）', () => {
+  const ok = normalizeDocument({ settings: { lastBackupAt: '2026-11-22' } });
+  assert.equal(ok.settings.lastBackupAt, '2026-11-22');
+  for (const bad of ['2026-1-1', '11/22/2026', '', 42, null]) {
+    assert.equal(normalizeDocument({ settings: { lastBackupAt: bad } }).settings.lastBackupAt, null);
+  }
 });

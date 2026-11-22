@@ -75,6 +75,8 @@ function fakeSnapshot() {
           order: 0,
           priority: 'P1',
           labels: ['文档'],
+          blocked: true,
+          blockedReason: '等外部 API',
           checklist: [
             { id: 'item-aaaaaaaaaa', text: '检查项一', done: true },
             { id: 'item-bbbbbbbbbb', text: '检查项二', done: false },
@@ -231,6 +233,9 @@ test('the panel renders a live snapshot (toolbar, board, card)', async () => {
     assert.match(boardHtml, /卡片甲/, 'card title from the snapshot');
     assert.match(boardHtml, /sb-boardtabs/, 'board tab strip');
     assert.match(boardHtml, /action\.filter/, 'board filter control');
+    assert.match(boardHtml, /sb-stats/, 'board stats bar renders');
+    assert.match(boardHtml, /stats\.blocked/, 'stats bar has a blocked count');
+    assert.match(boardHtml, /label\.blocked/, 'blocked chip renders on the card');
 
     // The "+" tab opens the board-template menu (it used to be clipped by the
     // scrollable tab strip; the popover must at least render with its items).
@@ -487,6 +492,41 @@ test('Enter confirms the dialog from the keyboard', async () => {
       modal.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     });
     assert.ok(host.calls.some((call) => call.action === 'board.remove'), 'Enter confirms');
+  } finally {
+    await unmount();
+  }
+});
+
+test('wall view exposes density and colour filters', async () => {
+  const { container, host, unmount } = await mountPanel(fakeSnapshot());
+  try {
+    assert.match(container.innerHTML, /data-sb-density="auto"/, 'root carries the density preset');
+
+    const filterButton = container.querySelector('[title="action.filter"]');
+    assert.ok(filterButton !== null, 'wall filter button exists');
+    await act(async () => {
+      filterButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    assert.match(container.innerHTML, /label\.color/, 'colour filter menu opens');
+    assert.match(container.innerHTML, /label\.pinnedOnly/, 'pinned-only toggle exists');
+
+    const swatch = container.querySelector('.sb-swatch');
+    assert.ok(swatch !== null, 'colour swatches render');
+    await act(async () => {
+      swatch.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    assert.equal(container.querySelector('.sb-swatch').getAttribute('data-on'), 'true', 'picked colour is marked');
+
+    const densityButton = container.querySelector('[title="action.density"]');
+    assert.ok(densityButton !== null, 'density button exists');
+    await act(async () => {
+      densityButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    assert.ok(
+      host.calls.some((call) => call.action === 'settings.update' && call.patch?.wallDensity === 'compact'),
+      'density button persists the next preset',
+    );
   } finally {
     await unmount();
   }

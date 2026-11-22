@@ -261,6 +261,26 @@ await step('history undo/redo work through the route and the tool', async () => 
   await post(route, 'note.remove', { id: noteId, permanent: true });
 });
 
+await step('card blocked flag and reason round-trip', async () => {
+  const created = await post(route, 'card.create', {
+    card: { title: '阻塞测试', blocked: true, blockedReason: '等外部 API' },
+  });
+  const cardId = created.body.card.id;
+  assert.equal(created.body.card.blocked, true);
+  assert.equal(created.body.card.blockedReason, '等外部 API');
+
+  const cleared = await post(route, 'card.update', { id: cardId, patch: { blocked: false } });
+  assert.equal(cleared.body.card.blocked, false);
+
+  const updateTool = tools.get('sticky_task_update');
+  await updateTool.execute({ id: cardId, blocked: true, blockedReason: '依赖评审' }, {});
+  const listed = await tools.get('sticky_task_list').execute({ query: '阻塞测试' }, {});
+  assert.match(listed.text, /blocked/);
+  assert.match(listed.text, /\[P2,blocked\]/);
+
+  await post(route, 'card.remove', { id: cardId, permanent: true });
+});
+
 await step('trash, restore and purge a note', async () => {
   const removed = await post(route, 'note.remove', { id: noteId });
   assert.equal(removed.body.ok, true);
@@ -288,14 +308,14 @@ await step('settings and export round-trip', async () => {
   assert.equal(settings.body.settings.activeView, 'board');
   const exported = await post(route, 'export');
   assert.equal(exported.body.ok, true);
-  assert.equal(exported.body.document.version, 2);
+  assert.equal(exported.body.document.version, 3);
   const imported = await post(route, 'import', { document: exported.body.document, mode: 'merge' });
   assert.equal(imported.body.ok, true);
 });
 
 await step('document survives a reload from disk', async () => {
   const raw = JSON.parse(await readFile(storePath, 'utf8'));
-  assert.equal(raw.version, 2);
+  assert.equal(raw.version, 3);
   assert.ok(Array.isArray(raw.boards) && raw.boards.length === 1);
   assert.ok(raw.rev > 0);
 });

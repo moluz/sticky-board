@@ -2,6 +2,15 @@
 
 Notable changes to `@local/sticky-board`. Versions are local (not published).
 
+## 0.17.0
+
+- Schema v3: cards gain `blocked` + `blockedReason` (≤200 chars); settings gain `lastBackupAt`; v1/v2 documents are read as v3 with defaults filled in.
+- Daily snapshot backup: the store copies `board.json` to `board.json.bak-YYYY-MM-DD` before the first write of each day and keeps the newest 7 snapshots.
+- Blocked cards: drawer toggle + reason input, red `阻塞` chip on the board card, and a "blocked only" board filter.
+- Board stats bar: per-column counts, P0+P1, overdue and blocked chips; clicking the latter three toggles the matching filter.
+- Wall filters and density: colour multi-select + pinned-only filter, and the previously unused `settings.wallDensity` now drives compact/standard/cozy note density.
+
+
 ## 0.16.0
 
 - One confirm-dialog style for every destructive action: title + subject (name and count) + consequence + an undo hint (`Ctrl+Z`, history clears on restart), with 取消 / 动作 buttons. Copy now says what actually happens — deleting a column moves its cards to the first column, and the old "cannot be undone" wording is gone because writes are undoable.

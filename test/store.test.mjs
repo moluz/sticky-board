@@ -24,7 +24,7 @@ async function readJson(filePath) {
  * 加载
  * ------------------------------------------------------------------ */
 
-test('旧版 v1 文档加载后视为 v2：卡片补 checklist，写回时落 v2', async (t) => {
+test('旧版 v1 文档加载后视为 v3：卡片补 checklist，写回时落 v3', async (t) => {
   const dir = await makeTempDir(t);
   const filePath = path.join(dir, 'board.json');
   await fs.writeFile(
@@ -49,7 +49,7 @@ test('旧版 v1 文档加载后视为 v2：卡片补 checklist，写回时落 v2
 
   const store = createStore({ filePath });
   const doc = await store.ready;
-  assert.equal(doc.version, 2, 'v1 is read as v2');
+  assert.equal(doc.version, 3, 'v1 is read as v3');
   const legacyCard = doc.boards[0].cards[0];
   assert.deepEqual(legacyCard.checklist, [], 'migrated cards get an empty checklist');
   assert.equal(legacyCard.title, '旧卡');
@@ -58,7 +58,7 @@ test('旧版 v1 文档加载后视为 v2：卡片补 checklist，写回时落 v2
     current.boards[0].cards[0].checklist.push({ text: '迁移后新项', done: false });
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 2);
+  assert.equal(onDisk.version, 3);
   assert.equal(onDisk.boards[0].cards[0].checklist[0].text, '迁移后新项');
 });
 
@@ -117,9 +117,9 @@ test('mutate 写盘后重新 createStore 读到同样内容', async (t) => {
 
   const text = await fs.readFile(filePath, 'utf8');
   assert.ok(text.endsWith('\n')); // 文件末尾带换行
-  assert.ok(text.includes('\n  "version": 2')); // 2 空格缩进
+  assert.ok(text.includes('\n  "version": 3')); // 2 空格缩进
   const onDisk = JSON.parse(text);
-  assert.equal(onDisk.version, 2);
+  assert.equal(onDisk.version, 3);
   assert.equal(onDisk.rev, 1);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '你好');
@@ -290,7 +290,7 @@ test('损坏 JSON 文件：改名备份、空文档重建、之后可正常写�
     current.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '恢复后第一条' }] }, 5));
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 2);
+  assert.equal(onDisk.version, 3);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '恢复后第一条');
 });
@@ -366,4 +366,52 @@ test('撤销栈按 historyLimit 截断，空栈时返回 changed=false', async (
   assert.equal(store.snapshot().notes.length, 2, 'only the two most recent steps are undoable');
   const onDisk = await readJson(filePath);
   assert.equal(onDisk.notes.length, 2, 'the file follows the undo');
+});
+
+test('每日快照：首次写入只记日期，同日不重复复制', async (t) => {
+  const dir = await makeTempDir(t);
+  const filePath = path.join(dir, 'board.json');
+  const store = createStore({ filePath });
+  await store.ready;
+  await store.mutate((doc) => {
+    doc.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '一' }] }, 1));
+  });
+  const today = new Date();
+  const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  assert.equal(await fs.access(`${filePath}.bak-${key}`).then(() => true, () => false), false, '首次运行没有旧文件可备份');
+  assert.equal((await readJson(filePath)).settings.lastBackupAt, key);
+
+  await store.mutate((doc) => {
+    doc.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '二' }] }, 2));
+  });
+  assert.equal(await fs.access(`${filePath}.bak-${key}`).then(() => true, () => false), false, '同一天不重复复制');
+});
+
+test('跨天写入生成快照，并只保留最近 7 份', async (t) => {
+  const dir = await makeTempDir(t);
+  const filePath = path.join(dir, 'board.json');
+  const store = createStore({ filePath });
+  await store.ready;
+  await store.mutate((doc) => {
+    doc.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '一' }] }, 1));
+  });
+  const today = new Date();
+  const key = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  // 把日期改成过去：下一次写入前应把当前文件复制成今天的快照
+  await store.mutate((doc) => {
+    doc.settings.lastBackupAt = '2020-01-01';
+  });
+  assert.equal(await fs.access(`${filePath}.bak-${key}`).then(() => true, () => false), true, '今天已生成快照');
+
+  // 预置 8 份旧快照，触发裁剪
+  for (let index = 1; index <= 8; index += 1) {
+    await fs.writeFile(`${filePath}.bak-2020-02-0${index}`, 'old', 'utf8');
+  }
+  await store.mutate((doc) => {
+    doc.settings.lastBackupAt = '2019-12-31';
+  });
+  const backups = (await fs.readdir(dir)).filter((name) => name.startsWith('board.json.bak-')).sort();
+  assert.equal(backups.length, 7, `kept ${backups.join(',')}`);
+  assert.equal(backups.includes(`board.json.bak-${key}`), true, '今天的快照必须保留');
 });
