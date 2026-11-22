@@ -69,6 +69,13 @@ window.__ModuleLoader__.load({
       'placeholder.labelFilter': '按标签过滤',
       'label.blocked': '阻塞',
       'placeholder.blockReason': '阻塞原因',
+      'label.doneColumn': '完成列',
+      'label.noDoneColumn': '不指定完成列',
+      'hint.doneColumn': '卡片移入这一列即标记完成，移出则清除完成标记',
+      'toast.doneColumn': '完成列已更新',
+      'label.acceptance': '验收标准',
+      'placeholder.acceptance': '写清「什么算做完」…可多行',
+      'chip.acceptance': '验收',
       'stats.priority': 'P0+P1',
       'stats.overdue': '逾期',
       'stats.blocked': '阻塞',
@@ -210,6 +217,13 @@ window.__ModuleLoader__.load({
       'placeholder.labelFilter': 'Filter by label',
       'label.blocked': 'Blocked',
       'placeholder.blockReason': 'Blocked reason',
+      'label.doneColumn': 'Done column',
+      'label.noDoneColumn': 'No done column',
+      'hint.doneColumn': 'Cards entering this column are marked done; leaving clears the flag',
+      'toast.doneColumn': 'Done column updated',
+      'label.acceptance': 'Acceptance criteria',
+      'placeholder.acceptance': 'What counts as done… multiple lines allowed',
+      'chip.acceptance': 'Acceptance',
       'stats.priority': 'P0+P1',
       'stats.overdue': 'Overdue',
       'stats.blocked': 'Blocked',
@@ -366,6 +380,7 @@ window.__ModuleLoader__.load({
 .sb-col-title{flex:1;min-width:0;font-weight:600;font-size:12px;background:transparent;border:0;color:var(--dsw-alias-label-primary,#e6edf7);font-family:inherit;padding:1px 3px;border-radius:4px}
 .sb-col-title:focus{outline:1px solid var(--dsw-alias-brand-primary,#4f8cff);background:var(--dsw-alias-bg-base,#0f1218)}
 .sb-col-count{color:var(--dsw-alias-label-secondary,#93a1bb);font-size:11px}
+.sb-col-done{flex:none;font-size:10px;line-height:15px;padding:0 5px;border-radius:4px;color:var(--sb-success);border:1px solid color-mix(in srgb,var(--sb-success) 45%,transparent);background:color-mix(in srgb,var(--sb-success) 12%,transparent)}
 .sb-col-body{flex:1;min-height:36px;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:6px}
 .sb-col-body[data-over="true"]{background:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f8cff) 8%,transparent);border-radius:7px}
 .sb-card{border-radius:7px;background:var(--dsw-alias-bg-layer-2,#1b212b);border:1px solid var(--dsw-alias-border-l2,#232a36);padding:6px 8px 6px 7px;cursor:grab;display:flex;gap:6px;align-items:flex-start}
@@ -451,6 +466,7 @@ window.__ModuleLoader__.load({
 .sb-menu{position:absolute;right:0;top:26px;z-index:95;min-width:158px;display:flex;flex-direction:column;padding:4px;border-radius:7px;background:var(--dsw-alias-bg-overlay,#242c3a);border:1px solid var(--dsw-alias-border-l2,#232a36);box-shadow:0 8px 22px rgba(0,0,0,.42)}
 .sb-menu-item{cursor:pointer;border:0;background:transparent;color:var(--dsw-alias-label-primary,#e6edf7);text-align:left;border-radius:5px;padding:5px 9px;font:inherit;font-size:11px;white-space:nowrap}
 .sb-menu-item:hover{background:var(--dsw-alias-bg-layer-2,#1b212b)}
+.sb-menu-item[data-on="true"]{color:var(--sb-accent)}
 .sb-menu-item:disabled{opacity:.45;cursor:default}
 .sb-filter{min-width:210px;padding:8px;gap:8px}
 .sb-filter-title{font-size:11px;color:var(--dsw-alias-label-secondary,#93a1bb)}
@@ -1151,6 +1167,12 @@ window.__ModuleLoader__.load({
                     `☑ ${(card.checklist ?? []).filter((item) => item.done === true).length}/${(card.checklist ?? []).length}`,
                   )
                 : null,
+              typeof card.acceptance === 'string' && card.acceptance.trim() !== ''
+                ? h('span', {
+                    className: 'sb-chip',
+                    title: card.acceptance,
+                  }, t('chip.acceptance'))
+                : null,
               linked
                 ? h('span', {
                     className: 'sb-chip',
@@ -1178,6 +1200,7 @@ window.__ModuleLoader__.load({
         dropCard,
         dropColumnTarget,
         dragDisabled,
+        doneColumn,
         onCardStart,
         onColumnStart,
         onDragEnd,
@@ -1251,6 +1274,9 @@ window.__ModuleLoader__.load({
               },
             }),
             h('span', { className: 'sb-col-count' }, String(cards.length)),
+            doneColumn === true
+              ? h('span', { className: 'sb-col-done', title: t('hint.doneColumn') }, '✓')
+              : null,
             h(Ico, {
               title: t('action.removeColumn'),
               onClick: () => {
@@ -1538,6 +1564,7 @@ window.__ModuleLoader__.load({
         const boardRef = useRef(null);
 
         const columns = board?.columns ?? [];
+        const doneColumnId = board?.doneColumnId ?? null;
         const byColumn = useMemo(() => {
           const map = new Map();
           for (const column of columns) map.set(column.id, []);
@@ -1641,6 +1668,7 @@ window.__ModuleLoader__.load({
               dropCard,
               dropColumnTarget,
               dragDisabled,
+              doneColumn: column.id === doneColumnId,
               onCardStart: (id) => setDrag({ kind: 'card', id }),
               onColumnStart: (id) => setDrag({ kind: 'column', id }),
               onDragEnd: reset,
@@ -1681,6 +1709,7 @@ window.__ModuleLoader__.load({
       function CardDrawer({ card, notes, call, onClose, onConvert, onJump, onSync }) {
         const [title, setTitle] = useState(card.title);
         const [body, setBody] = useState(card.note ?? '');
+        const [acceptance, setAcceptance] = useState(card.acceptance ?? '');
         const [labels, setLabels] = useState((card.labels ?? []).join(', '));
         const [preview, setPreview] = useState(false);
         const [savedAt, setSavedAt] = useState(null);
@@ -1690,6 +1719,7 @@ window.__ModuleLoader__.load({
         useEffect(() => {
           setTitle(card.title);
           setBody(card.note ?? '');
+          setAcceptance(card.acceptance ?? '');
           setLabels((card.labels ?? []).join(', '));
           setBlockReason(card.blockedReason ?? '');
         }, [card.id, card.rev]);
@@ -1784,6 +1814,21 @@ window.__ModuleLoader__.load({
                       if (body !== (card.note ?? '')) void save({ note: body });
                     },
                   }),
+            ),
+            h(
+              'div',
+              { className: 'sb-field' },
+              h('span', { className: 'sb-field-label' }, t('label.acceptance')),
+              h('textarea', {
+                className: 'sb-textarea',
+                style: { minHeight: '72px' },
+                value: acceptance,
+                placeholder: t('placeholder.acceptance'),
+                onChange: (event) => setAcceptance(event.target.value),
+                onBlur: () => {
+                  if (acceptance !== (card.acceptance ?? '')) void save({ acceptance });
+                },
+              }),
             ),
             h(
               'div',
@@ -2234,6 +2279,7 @@ window.__ModuleLoader__.load({
         const [toast, setToast] = useState(null);
         const [menuOpen, setMenuOpen] = useState(false);
         const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+        const [doneMenuOpen, setDoneMenuOpen] = useState(false);
         const [notePaletteOpen, setNotePaletteOpen] = useState(false);
         const [filterOpen, setFilterOpen] = useState(false);
         const [filters, setFilters] = useState({ priorities: [], openOnly: false, overdueOnly: false, blockedOnly: false, label: '' });
@@ -2245,6 +2291,7 @@ window.__ModuleLoader__.load({
         const searchRef = useRef(null);
         const menuRef = useRef(null);
         const moveMenuRef = useRef(null);
+        const doneMenuRef = useRef(null);
         const notePaletteRef = useRef(null);
         // Follow the Host theme (light/dark) so the decorative palette stays legible.
         useEffect(() => {
@@ -2401,6 +2448,17 @@ window.__ModuleLoader__.load({
           return () => window.removeEventListener('pointerdown', close);
         }, [moveMenuOpen]);
 
+        // Close the "done column" picker the same way.
+        useEffect(() => {
+          if (!doneMenuOpen) return undefined;
+          const close = (event) => {
+            if (doneMenuRef.current !== null && doneMenuRef.current.contains(event.target)) return;
+            setDoneMenuOpen(false);
+          };
+          window.addEventListener('pointerdown', close);
+          return () => window.removeEventListener('pointerdown', close);
+        }, [doneMenuOpen]);
+
         // Close the note colour palette the same way.
         useEffect(() => {
           if (!notePaletteOpen) return undefined;
@@ -2441,6 +2499,7 @@ window.__ModuleLoader__.load({
         const allCards = board?.cards ?? [];
         const counts = data?.counts ?? { notes: 0, cards: 0, pinned: 0, notesTrash: 0, cardsTrash: 0 };
         const densityValue = data?.settings?.wallDensity ?? 'auto';
+        const doneColumn = (board?.columns ?? []).find((column) => column.id === board?.doneColumnId);
         const needle = query.trim().toLowerCase();
 
         const match = useCallback((title, text) => {
@@ -2510,6 +2569,16 @@ window.__ModuleLoader__.load({
         /** Clear every board filter. */
         function resetFilters() {
           setFilters({ priorities: [], openOnly: false, overdueOnly: false, label: '' });
+        }
+
+        /** Pick (or clear) the column that marks cards done on the active board. */
+        async function setDoneColumn(columnId) {
+          setDoneMenuOpen(false);
+          const answer = await call('board.update', { id: activeBoardId, patch: { doneColumnId: columnId ?? '' } });
+          if (answer !== null) {
+            const column = (answer.board?.columns ?? []).find((entry) => entry.id === answer.board?.doneColumnId);
+            showToast({ text: `${t('toast.doneColumn')} · ${column?.title ?? t('label.noDoneColumn')}` });
+          }
         }
 
         const drawerCard = drawerId === null ? undefined : allCards.find((card) => card.id === drawerId);
@@ -2917,7 +2986,7 @@ window.__ModuleLoader__.load({
         async function pinSelected() {
           const ids = [...noteSelection];
           if (ids.length === 0) return;
-          for (const id of ids) await call('note.update', { id, patch: { pinned: true } });
+          await call('note.bulkUpdate', { ids, patch: { pinned: true } });
           showToast({ text: `${t('action.pin')} · ${ids.length}` });
         }
 
@@ -2935,7 +3004,7 @@ window.__ModuleLoader__.load({
           const ids = [...cardSelection];
           if (ids.length === 0) return;
           const allDone = ids.every((id) => (allCards.find((card) => card.id === id)?.done ?? false) === true);
-          for (const id of ids) await call('card.update', { id, patch: { done: !allDone } });
+          await call('card.bulkUpdate', { ids, patch: { done: !allDone } });
           showToast({ text: `${allDone ? t('action.undone') : t('action.done')} · ${ids.length}` });
         }
 
@@ -2944,7 +3013,7 @@ window.__ModuleLoader__.load({
           const ids = [...cardSelection];
           if (ids.length === 0 || onColumnId === '') return;
           clearCardSelection();
-          for (const id of ids) await call('card.move', { id, columnId: onColumnId, toIndex: 9999 });
+          await call('card.bulkUpdate', { ids, patch: { columnId: onColumnId } });
           showToast({ text: `${t('action.moveTo')} · ${ids.length}` });
         }
 
@@ -3010,7 +3079,7 @@ window.__ModuleLoader__.load({
           const ids = [...noteSelection];
           if (ids.length === 0) return;
           setNotePaletteOpen(false);
-          for (const id of ids) await call('note.update', { id, patch: { color } });
+          await call('note.bulkUpdate', { ids, patch: { color } });
           showToast({ text: `${t('action.color')} · ${ids.length}` });
         }
 
@@ -3560,6 +3629,43 @@ window.__ModuleLoader__.load({
                   onClick: () => setFilters((current) => ({ ...current, blockedOnly: current.blockedOnly !== true })),
                 },
                 `${t('stats.blocked')} ${statBlocked}`,
+              ),
+              h(
+                'div',
+                { className: 'sb-menu-wrap', ref: doneMenuRef },
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'sb-stat',
+                    title: t('hint.doneColumn'),
+                    'data-on': doneColumn !== undefined ? 'true' : undefined,
+                    onClick: () => setDoneMenuOpen((on) => !on),
+                  },
+                  `${t('label.doneColumn')} ${doneColumn?.title ?? t('label.none')}`,
+                ),
+                doneMenuOpen
+                  ? h(
+                      'div',
+                      { className: 'sb-menu sb-filter', style: { minWidth: '160px' } },
+                      h('span', { className: 'sb-filter-title' }, t('label.doneColumn')),
+                      (board?.columns ?? []).map((column) =>
+                        h('button', {
+                          key: column.id,
+                          type: 'button',
+                          className: 'sb-menu-item',
+                          'data-on': column.id === board?.doneColumnId ? 'true' : undefined,
+                          onClick: () => void setDoneColumn(column.id),
+                        }, column.title),
+                      ),
+                      h('button', {
+                        type: 'button',
+                        className: 'sb-menu-item',
+                        disabled: board?.doneColumnId === null || board?.doneColumnId === undefined,
+                        onClick: () => void setDoneColumn(null),
+                      }, t('label.noDoneColumn')),
+                    )
+                  : null,
               ),
             ),
             h(BoardView, {

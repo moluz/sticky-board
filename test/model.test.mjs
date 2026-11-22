@@ -32,8 +32,8 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
  * 常量 / 空文档
  * ------------------------------------------------------------------ */
 
-test('常量导出符合数据模型 v3', () => {
-  assert.equal(SCHEMA_VERSION, 3);
+test('常量导出符合数据模型 v4', () => {
+  assert.equal(SCHEMA_VERSION, 4);
   assert.deepEqual(NOTE_COLORS, ['amber', 'rose', 'mint', 'sky', 'violet', 'slate', 'plain']);
   assert.deepEqual(LINE_KINDS, ['text', 'todo', 'ul', 'ol']);
   assert.deepEqual(PRIORITIES, ['P0', 'P1', 'P2', 'P3']);
@@ -42,7 +42,7 @@ test('常量导出符合数据模型 v3', () => {
 test('emptyDocument 结构完整且是全新对象', () => {
   const doc = emptyDocument();
   assert.deepEqual(doc, {
-    version: 3,
+    version: 4,
     rev: 0,
     notes: [],
     boards: [
@@ -54,6 +54,7 @@ test('emptyDocument 结构完整且是全新对象', () => {
           { id: 'doing', title: '进行中', order: 1 },
           { id: 'done', title: '完成', order: 2 },
         ],
+        doneColumnId: 'done',
         cards: [],
       },
     ],
@@ -77,6 +78,7 @@ test('defaultBoard 每次返回独立对象', () => {
   assert.equal(board.id, 'board-main');
   assert.equal(board.title, '默认看板');
   assert.deepEqual(board.columns.map((column) => column.id), ['todo', 'doing', 'done']);
+  assert.equal(board.doneColumnId, 'done');
   assert.deepEqual(board.cards, []);
   board.columns[0].title = '被改掉';
   assert.equal(defaultBoard().columns[0].title, '待办');
@@ -110,7 +112,7 @@ test('normalizeDocument 补齐缺失字段', () => {
     boards: [{ cards: [{}] }],
   });
 
-  assert.equal(doc.version, 3);
+  assert.equal(doc.version, 4);
   assert.equal(doc.rev, 0);
   assert.equal(doc.notes.length, 1);
   const note = doc.notes[0];
@@ -135,11 +137,13 @@ test('normalizeDocument 补齐缺失字段', () => {
   assert.equal(doc.boards[0].id, 'board-main');
   assert.equal(doc.boards[0].title, '默认看板');
   assert.deepEqual(doc.boards[0].columns.map((column) => column.id), ['todo', 'doing', 'done']);
+  assert.equal(doc.boards[0].doneColumnId, 'done');
   assert.equal(doc.boards[0].cards.length, 1);
   const card = doc.boards[0].cards[0];
   assert.match(card.id, /^card-[0-9a-f]{10}$/);
   assert.equal(card.title, '');
   assert.equal(card.note, '');
+  assert.equal(card.acceptance, '');
   assert.equal(card.columnId, 'todo');
   assert.equal(card.order, 0);
   assert.equal(card.priority, 'P2');
@@ -351,7 +355,7 @@ test('normalizeDocument 不修改入参', () => {
   const before = clone(raw);
   const first = normalizeDocument(raw);
   assert.deepEqual(raw, before);
-  assert.equal(first.version, 3);
+  assert.equal(first.version, 4);
   assert.equal(first.rev, 5);
   assert.equal(first.notes[0].lines.length, 0);
   assert.equal(first.boards[0].columns[0].title, 'T');
@@ -411,6 +415,7 @@ test('normalizeCard 默认值与字段校验', () => {
   assert.match(card.id, /^card-[0-9a-f]{10}$/);
   assert.equal(card.title, '');
   assert.equal(card.note, '');
+  assert.equal(card.acceptance, '');
   assert.equal(card.columnId, 'todo');
   assert.equal(card.order, 0);
   assert.equal(card.priority, 'P2');
@@ -502,23 +507,83 @@ test('cardSummary 带上检查项进度', () => {
   assert.match(cardSummary(card), /\[☑ 1\/2\]/);
   const plain = normalizeCard({ title: '无子项' }, 1);
   assert.doesNotMatch(cardSummary(plain), /☑/);
+  assert.doesNotMatch(cardSummary(plain), /\[acceptance\]/);
+  const withAcceptance = normalizeCard({ title: '有验收', acceptance: '能跑通冒烟测试' }, 1);
+  assert.match(cardSummary(withAcceptance), /\[acceptance\]/);
 });
 
-test('旧版 v1 文档读入即迁移到 v3，卡片补 checklist/阻塞默认值', () => {
+test('旧版文档读入即迁移到 v4：补 checklist/blocked/acceptance 与 doneColumnId', () => {
   const doc = normalizeDocument({
     version: 1,
     boards: [{ id: 'board-main', cards: [{ id: 'card-old', title: '旧卡' }] }],
   });
-  assert.equal(doc.version, 3);
+  assert.equal(doc.version, 4);
   assert.deepEqual(doc.boards[0].cards[0].checklist, []);
   assert.equal(doc.boards[0].cards[0].blocked, false);
   assert.equal(doc.boards[0].cards[0].blockedReason, null);
+  assert.equal(doc.boards[0].cards[0].acceptance, '');
+  assert.equal(doc.boards[0].doneColumnId, 'done', 'v1 defaults to the todo/doing/done board');
+
   const kept = normalizeDocument({
     version: 2,
     boards: [{ id: 'board-main', cards: [{ id: 'card-new', checklist: [{ text: '保留', done: true }] }] }],
   });
   assert.equal(kept.boards[0].cards[0].checklist[0].text, '保留');
   assert.equal(kept.boards[0].cards[0].checklist[0].done, true);
+});
+
+test('v3 → v4：自定义看板按标题推断完成列，并把该列卡片补成完成', () => {
+  const doc = normalizeDocument({
+    version: 3,
+    boards: [
+      {
+        id: 'board-custom',
+        title: '迭代',
+        columns: [
+          { id: 'col-todo', title: '待办', order: 0 },
+          { id: 'col-doing', title: '进行中', order: 1 },
+          { id: 'col-ship', title: '完成', order: 2 },
+        ],
+        cards: [
+          { id: 'card-a', title: '在完成列', columnId: 'col-ship', done: false },
+          { id: 'card-b', title: '在待办列', columnId: 'col-todo', done: false },
+        ],
+      },
+    ],
+  });
+  const board = doc.boards[0];
+  assert.equal(board.doneColumnId, 'col-ship', 'infers the column titled 完成');
+  assert.equal(board.cards.find((card) => card.id === 'card-a').done, true, 'existing done-column cards are backfilled');
+  assert.equal(board.cards.find((card) => card.id === 'card-b').done, false);
+
+  // 显式 null / 非法 id 都表示「不指定完成列」，且迁移不回填。
+  const cleared = normalizeDocument({
+    version: 3,
+    boards: [
+      {
+        id: 'board-main',
+        doneColumnId: null,
+        columns: [{ id: 'done', title: '完成', order: 0 }],
+        cards: [{ id: 'card-c', title: '在完成列', columnId: 'done', done: false }],
+      },
+    ],
+  });
+  assert.equal(cleared.boards[0].doneColumnId, null);
+  assert.equal(cleared.boards[0].cards[0].done, false);
+
+  const invalid = normalizeDocument({
+    version: 4,
+    boards: [{ id: 'board-main', doneColumnId: 'col-missing', columns: [{ id: 'done', title: '完成' }] }],
+  });
+  assert.equal(invalid.boards[0].doneColumnId, null, 'a doneColumnId that is not a column is dropped');
+});
+
+test('normalizeCard 验收标准：默认空、保留换行、截断 2000 字', () => {
+  assert.equal(normalizeCard({}, 1).acceptance, '');
+  const card = normalizeCard({ acceptance: '第一行\n第二行' }, 1);
+  assert.equal(card.acceptance, '第一行\n第二行');
+  assert.equal(normalizeCard({ acceptance: 'x'.repeat(2500) }, 1).acceptance.length, 2000);
+  assert.equal(normalizeCard({ acceptance: 42 }, 1).acceptance, '42');
 });
 
 test('normalizeLines 过滤非法 kind、转字符串、补 done/id', () => {

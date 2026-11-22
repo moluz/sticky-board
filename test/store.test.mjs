@@ -24,7 +24,7 @@ async function readJson(filePath) {
  * 加载
  * ------------------------------------------------------------------ */
 
-test('旧版 v1 文档加载后视为 v3：卡片补 checklist，写回时落 v3', async (t) => {
+test('旧版 v1 文档加载后视为 v4：卡片补 checklist/acceptance，写回时落 v4', async (t) => {
   const dir = await makeTempDir(t);
   const filePath = path.join(dir, 'board.json');
   await fs.writeFile(
@@ -49,16 +49,18 @@ test('旧版 v1 文档加载后视为 v3：卡片补 checklist，写回时落 v3
 
   const store = createStore({ filePath });
   const doc = await store.ready;
-  assert.equal(doc.version, 3, 'v1 is read as v3');
+  assert.equal(doc.version, 4, 'v1 is read as v4');
   const legacyCard = doc.boards[0].cards[0];
   assert.deepEqual(legacyCard.checklist, [], 'migrated cards get an empty checklist');
+  assert.equal(legacyCard.acceptance, '', 'migrated cards get empty acceptance criteria');
   assert.equal(legacyCard.title, '旧卡');
+  assert.equal(doc.boards[0].doneColumnId, null, 'a one-column board has no inferred done column');
 
   await store.mutate((current) => {
     current.boards[0].cards[0].checklist.push({ text: '迁移后新项', done: false });
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 3);
+  assert.equal(onDisk.version, 4);
   assert.equal(onDisk.boards[0].cards[0].checklist[0].text, '迁移后新项');
 });
 
@@ -117,9 +119,9 @@ test('mutate 写盘后重新 createStore 读到同样内容', async (t) => {
 
   const text = await fs.readFile(filePath, 'utf8');
   assert.ok(text.endsWith('\n')); // 文件末尾带换行
-  assert.ok(text.includes('\n  "version": 3')); // 2 空格缩进
+  assert.ok(text.includes('\n  "version": 4')); // 2 空格缩进
   const onDisk = JSON.parse(text);
-  assert.equal(onDisk.version, 3);
+  assert.equal(onDisk.version, 4);
   assert.equal(onDisk.rev, 1);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '你好');
@@ -290,7 +292,7 @@ test('损坏 JSON 文件：改名备份、空文档重建、之后可正常写�
     current.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '恢复后第一条' }] }, 5));
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 3);
+  assert.equal(onDisk.version, 4);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '恢复后第一条');
 });

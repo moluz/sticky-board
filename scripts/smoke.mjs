@@ -96,7 +96,7 @@ await step('route and tools are registered', () => {
   assert.equal(typeof route?.fetch, 'function');
   assert.equal(route.path, '/api/sticky-board');
   assert.deepEqual([...route.methods].sort(), ['GET', 'HEAD', 'POST']);
-  assert.equal(tools.size, 14, `expected 14 tools, got ${tools.size}: ${[...tools.keys()].join(',')}`);
+  assert.equal(tools.size, 16, `expected 16 tools, got ${tools.size}: ${[...tools.keys()].join(',')}`);
   for (const tool of ctx.registered.tools) {
     assert.equal(typeof tool.description, 'string');
     assert.equal(typeof tool.execute, 'function');
@@ -112,6 +112,7 @@ await step('empty snapshot has one board with three columns', async () => {
   assert.deepEqual(body.notes, []);
   assert.equal(body.board.columns.length, 3);
   assert.deepEqual(body.board.columns.map((column) => column.id), ['todo', 'doing', 'done']);
+  assert.equal(body.board.doneColumnId, 'done');
   assert.equal(body.counts.notes, 0);
   assert.equal(body.storePath, storePath);
 });
@@ -281,6 +282,32 @@ await step('card blocked flag and reason round-trip', async () => {
   await post(route, 'card.remove', { id: cardId, permanent: true });
 });
 
+await step('card acceptance criteria round-trip through the route and the tools', async () => {
+  const created = await post(route, 'card.create', {
+    card: { title: '验收测试', acceptance: '第一行\n第二行' },
+  });
+  const cardId = created.body.card.id;
+  assert.equal(created.body.card.acceptance, '第一行\n第二行');
+
+  const updated = await post(route, 'card.update', { id: cardId, patch: { acceptance: '冒烟通过' } });
+  assert.equal(updated.body.card.acceptance, '冒烟通过');
+
+  const viaTool = await tools.get('sticky_task_update').execute({ id: cardId, acceptance: '工具写入' }, {});
+  assert.match(viaTool.text, /验收标准 4 字/);
+  const listed = await tools.get('sticky_task_list').execute({ query: '验收测试' }, {});
+  assert.match(listed.text, /验收: 工具写入/);
+
+  const viaCreate = await tools.get('sticky_task_create').execute({ title: '工具验收', acceptance: '能交付' }, {});
+  assert.match(viaCreate.text, /工具验收/);
+  const snapshot = await get(route);
+  assert.equal(snapshot.body.board.cards.find((card) => card.title === '工具验收').acceptance, '能交付');
+
+  // 清掉本步创建的卡，避免影响后续计数
+  for (const card of snapshot.body.board.cards.filter((entry) => entry.title === '验收测试' || entry.title === '工具验收')) {
+    await post(route, 'card.remove', { id: card.id, permanent: true });
+  }
+});
+
 await step('trash, restore and purge a note', async () => {
   const removed = await post(route, 'note.remove', { id: noteId });
   assert.equal(removed.body.ok, true);
@@ -303,19 +330,51 @@ await step('columns can be added, renamed and removed', async () => {
   assert.equal(removed.body.board.columns.length, 3);
 });
 
+await step('the done column is configurable per board (schema v4)', async () => {
+  const before = await get(route);
+  assert.equal(before.body.board.doneColumnId, 'done', 'default board keeps the done column');
+
+  const added = await post(route, 'board.add', { title: '完成列测试板', columns: ['待办', '收尾'] });
+  const boardId = added.body.activeBoardId;
+  assert.equal(added.body.board.doneColumnId, null, 'a template without 完成/Done has no done column');
+  const [todoColumn, finishColumn] = added.body.board.columns;
+
+  const set = await post(route, 'board.update', { id: boardId, patch: { doneColumnId: finishColumn.id } });
+  assert.equal(set.body.board.doneColumnId, finishColumn.id);
+
+  const card = await post(route, 'card.create', { card: { title: '进完成列' } });
+  assert.equal(card.body.card.done, false);
+  const moved = await post(route, 'card.move', { id: card.body.card.id, columnId: finishColumn.id });
+  assert.equal(moved.body.card.done, true, 'entering the configured done column marks done');
+  const back = await post(route, 'card.move', { id: card.body.card.id, columnId: todoColumn.id });
+  assert.equal(back.body.card.done, false, 'leaving it clears done');
+
+  // 工具侧同样能切换 / 取消完成列
+  const manage = tools.get('sticky_board_manage');
+  const viaTool = await manage.execute({ action: 'doneColumn', columnId: todoColumn.id }, {});
+  assert.match(viaTool.text, /完成列/);
+  assert.equal((await get(route)).body.board.doneColumnId, todoColumn.id);
+  const cleared = await manage.execute({ action: 'doneColumn', columnId: '' }, {});
+  assert.match(cleared.text, /取消/);
+  assert.equal((await get(route)).body.board.doneColumnId, null);
+
+  await post(route, 'board.remove', { id: boardId });
+  await post(route, 'board.select', { id: 'board-main' });
+});
+
 await step('settings and export round-trip', async () => {
   const settings = await post(route, 'settings.update', { patch: { activeView: 'board' } });
   assert.equal(settings.body.settings.activeView, 'board');
   const exported = await post(route, 'export');
   assert.equal(exported.body.ok, true);
-  assert.equal(exported.body.document.version, 3);
+  assert.equal(exported.body.document.version, 4);
   const imported = await post(route, 'import', { document: exported.body.document, mode: 'merge' });
   assert.equal(imported.body.ok, true);
 });
 
 await step('document survives a reload from disk', async () => {
   const raw = JSON.parse(await readFile(storePath, 'utf8'));
-  assert.equal(raw.version, 3);
+  assert.equal(raw.version, 4);
   assert.ok(Array.isArray(raw.boards) && raw.boards.length === 1);
   assert.ok(raw.rev > 0);
 });
@@ -512,6 +571,47 @@ await step('card.trashMany moves many cards to the trash', async () => {
 
   await post(route, 'card.remove', { id: a.body.card.id, permanent: true });
   await post(route, 'card.remove', { id: b.body.card.id, permanent: true });
+});
+
+await step('bulk note and card actions land in one write and reach the tools', async () => {
+  const a = await post(route, 'note.create', { note: { lines: [{ kind: 'text', text: '批量甲' }] } });
+  const b = await post(route, 'note.create', { note: { lines: [{ kind: 'text', text: '批量乙' }] } });
+  const noteIds = [a.body.note.id, b.body.note.id];
+  const notesBulk = await post(route, 'note.bulkUpdate', { ids: noteIds, patch: { color: 'mint', pinned: true } });
+  assert.equal(notesBulk.body.notesUpdated, 2);
+  const minted = notesBulk.body.notes.filter((note) => noteIds.includes(note.id));
+  assert.equal(minted.every((note) => note.color === 'mint' && note.pinned === true), true);
+
+  const viaNoteTool = await tools.get('sticky_note_bulk').execute({ ids: [noteIds[0]], color: 'sky' }, {});
+  assert.match(viaNoteTool.text, /1 \/ 1/);
+  assert.equal((await get(route)).body.notes.find((note) => note.id === noteIds[0]).color, 'sky');
+
+  const cards = [];
+  for (const title of ['批量任务甲', '批量任务乙']) {
+    const created = await post(route, 'card.create', { card: { title } });
+    cards.push(created.body.card);
+  }
+  const cardIds = cards.map((card) => card.id);
+  const bulk = await post(route, 'card.bulkUpdate', {
+    ids: cardIds,
+    patch: { priority: 'P0', columnId: 'doing' },
+  });
+  assert.equal(bulk.body.cardsUpdated, 2);
+  const updated = bulk.body.board.cards.filter((card) => cardIds.includes(card.id));
+  assert.equal(updated.every((card) => card.priority === 'P0' && card.columnId === 'doing'), true);
+  assert.deepEqual(updated.map((card) => card.id), cardIds, 'appends in the order of ids');
+
+  const viaTaskTool = await tools.get('sticky_task_bulk').execute({ ids: cardIds, done: true }, {});
+  assert.match(viaTaskTool.text, /2 \/ 2/);
+  const listed = await tools.get('sticky_task_list').execute({ query: '批量任务' }, {});
+  assert.match(listed.text, /done/);
+
+  // 无效 id 不会报错，只是不计入 updated
+  const noop = await post(route, 'card.bulkUpdate', { ids: ['card-nope'], patch: { done: true } });
+  assert.equal(noop.body.cardsUpdated, 0);
+
+  for (const id of noteIds) await post(route, 'note.remove', { id, permanent: true });
+  for (const id of cardIds) await post(route, 'card.remove', { id, permanent: true });
 });
 
 await step('note.tidy spreads notes and trash.clear empties the trash', async () => {

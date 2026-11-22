@@ -2,6 +2,14 @@
 
 Notable changes to `@local/sticky-board`. Versions are local (not published).
 
+## 0.18.0
+
+- Schema v4: cards gain `acceptance` (multi-line acceptance criteria, ≤2000 chars) and boards gain `doneColumnId`; v1/v2/v3 documents are read as v4 with defaults filled in. v3 → v4 infers the done column (id `done`, else a column titled 完成/Done/Completed) and marks cards already sitting there as done.
+- Configurable done column: the stats bar has a 完成列 picker (choose any column, or 不指定完成列); the done column shows a green ✓ in its header. Entering it sets `done: true`, leaving clears it — replacing the hard-coded `columnId === 'done'` rule. The `sticky_board_manage` tool gains `action: doneColumn`.
+- Acceptance criteria in the drawer (textarea, saved on blur) and a 验收 chip on the card; tools read/write it (`sticky_task_create` / `sticky_task_update` accept `acceptance`, `sticky_task_list` prints it).
+- Batch / wall-level model tools: `sticky_note_bulk` (recolour / pin / trash / restore many notes) and `sticky_task_bulk` (move many cards to a column, priority, labels, done, blocked, trash / restore). New `POST note.bulkUpdate` / `card.bulkUpdate` perform one serialized write, so a batch is one undo step; the panel's multi-select done/move/pin/recolour actions now use them.
+- Tests: 66 unit tests (model v4 migration + done-column inference/backfill, render acceptance field and done-column picker, batch bulk write) and 36 smoke steps.
+
 ## 0.17.0
 
 - Schema v3: cards gain `blocked` + `blockedReason` (≤200 chars); settings gain `lastBackupAt`; v1/v2 documents are read as v3 with defaults filled in.

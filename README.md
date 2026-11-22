@@ -56,14 +56,16 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 - 多块看板：表头 tab 条切换、`＋` 新建（**弹出模板菜单：三列 / 五列 / 空白**）、**点当前 tab 上的 ✎ 或双击 tab 内联重命名**、拖动 tab 排序、**每个 tab 右侧内嵌 ✕ 删除该板**（至少保留一块，删前二次确认）；每块板有自己的列与卡片
 - 三列起步（待办 / 进行中 / 完成），可加列、改名、删列（列内卡片自动迁到第一列）；**自定义列重启后仍在**
+- **完成列可配置**：统计条右侧「完成列 ▾」指定当前看板哪一列代表「完成」（默认三列板是「完成」；五列模板自动认「完成」；也可以选「不指定完成列」）。卡片移入该列自动标记完成、移出自动清除，列头显示绿色 ✓
+- **验收标准**：卡片新增 `acceptance` 多行文本（≤2000 字），抽屉里写「什么算做完」，卡片上显示「验收」胶囊；模型工具的建/改/列表同样支持
 - **拖动列头左侧 `⠿` 手柄可调整列顺序**（拖到哪一列就占据那一列的位置：向右拖 2 格就是移 2 格）；列内卡片拖拽换列/排序（HTML5 拖放，松手即保存）；**拖到看板左右边缘自动横向滚动、拖到长列上下边缘自动纵向滚动**
 - 优先级色条（P0–P3）、截止日期（过期标黄）、标签、完成勾选
 - **阻塞**：抽屉里勾选「阻塞」并填原因（≤200 字），卡片显示红色「阻塞」胶囊，筛选条可「只看阻塞」
 - **统计条**：看板 tab 下方一行——各列计数、`P0+P1`、逾期、阻塞；点后三者即套用对应筛选
 - **拖动时有插入指示线**：悬停卡片显示其上方蓝线（插到它前面），悬停列空白处显示末尾蓝线
 - **筛选条**：优先级 P0–P3 多选、只看未完成、只看逾期、按标签子串过滤；按钮上显示生效条件数，弹出层底部可「清除筛选」。**筛选生效时禁用卡片拖动**（过滤后的列表算插入位会错位）
-- **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 在**同一列内**连选（跨列时退回单选，不跨列）；选中后表头出现一组蓝底操作条「已选 N / 完成 / 移到 ▾ / 删除」（「移到」是自绘弹出菜单，列出各列），`Delete` 批量移入回收站（toast 可撤销）
-- **单击卡片**直接打开右侧详情抽屉（按住 `Ctrl/Cmd/Shift` 时只做多选，不打开）；抽屉里可改标题、描述、优先级（P0–P3 分段按钮）、截止、标签、**检查项（子任务：勾选 / 行内改名 / 删除 / 添加，标题显示 3/5 进度）**；**描述可切换「预览」**（轻量 Markdown：粗体/斜体/行内代码/链接/列表/小标题），抽屉头部显示「已保存 HH:MM:SS」；关联便签时此行提供 **「同步便签内容」**（D1 单向：覆盖任务标题与描述，保留优先级/标签/截止/完成/列）与「取消关联」；底部一排三个等宽**描边**按钮：**完成（绿）/ 转为便签（蓝）/ 删除（红）**，完成是开关，已完成时绿色描边加粗并带 ✓；卡片元信息里会显示 `☑ 1/2` 进度胶囊
+- **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 在**同一列内**连选（跨列时退回单选，不跨列）；选中后表头出现一组蓝底操作条「已选 N / 完成 / 移到 ▾ / 删除」（「移到」是自绘弹出菜单，列出各列），`Delete` 批量移入回收站（toast 可撤销）；**完成/移到走 `card.bulkUpdate`，整批只写一次、撤销一步回退**
+- **单击卡片**直接打开右侧详情抽屉（按住 `Ctrl/Cmd/Shift` 时只做多选，不打开）；抽屉里可改标题、描述、**验收标准（多行，写清「什么算做完」）**、优先级（P0–P3 分段按钮）、截止、标签、**检查项（子任务：勾选 / 行内改名 / 删除 / 添加，标题显示 3/5 进度）**；**描述可切换「预览」**（轻量 Markdown：粗体/斜体/行内代码/链接/列表/小标题），抽屉头部显示「已保存 HH:MM:SS」；关联便签时此行提供 **「同步便签内容」**（D1 单向：覆盖任务标题与描述，保留优先级/标签/截止/完成/列）与「取消关联」；底部一排三个等宽**描边**按钮：**完成（绿）/ 转为便签（蓝）/ 删除（红）**，完成是开关，已完成时绿色描边加粗并带 ✓；卡片元信息里会显示 `☑ 1/2` 进度胶囊与「验收」胶囊
 - 卡片上的 🔗 可点：跳到关联便签（便签上的 🔗 反过来跳到任务，自动切视图 + 定位/高亮；跨板会自动切换看板）；**跳转后目标会自动滚动到视野内并闪烁一圈蓝光**
 
 **回收站**：便签与任务分两组列出，**支持多选**：全选 / 恢复选中 / 彻底删除选中，另有一键「清空回收站」（顶部操作条与「⋯」菜单各有一个入口）。
@@ -104,14 +106,16 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 > 撤销历史保存在 Host 内存里（默认 30 步），**重启 DSH 后清空**；撤销本身也是一次写入，`rev` 继续前进，其他窗口能正常轮询到。
 > 光标在输入框 / 文本域 / 下拉框内时，`Delete` 只编辑文字，不会误删条目。点选：便签点一下整张纸，任务点一下卡片（高亮描边即选中）。删除/导入/整理等操作会在底部弹 toast，软删除带「撤销」。
 
-## 模型工具（14 个）
+## 模型工具（16 个）
 
 | 工具 | 作用 |
 |---|---|
-| `sticky_board_get` | 全局状态：便签/任务数量、看板列表与当前活动板、各列数量、数据文件路径 |
-| `sticky_board_manage` | 看板管理：`list` / `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete`（任务工具总是作用于当前活动板） |
+| `sticky_board_get` | 全局状态：便签/任务数量、看板列表与当前活动板、各列数量（标注完成列）、数据文件路径 |
+| `sticky_board_manage` | 看板管理：`list` / `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete` / **`doneColumn`（设置当前看板的完成列，`columnId` 传空串即取消）** / `undo` / `redo`（任务工具总是作用于当前活动板） |
 | `sticky_note_list` / `sticky_note_create` / `sticky_note_update` / `sticky_note_remove` | 便签的查、建、改、删（默认软删） |
-| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist`，`update` 支持 `blocked` / `blockedReason`；列表输出带 `☑ d/n` 进度与 `blocked` 标记 |
+| `sticky_note_bulk` | **墙级批量**：一次给多张便签统一改色 / 置顶 / 移入回收站 / 恢复（整批一次写入，undo 一步回退） |
+| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist` 与 **`acceptance`**，`update` 支持 `blocked` / `blockedReason`；列表输出带 `☑ d/n` 进度、`blocked` 标记与 `验收:` 摘要 |
+| `sticky_task_bulk` | **板级批量**：一次移动多张任务到某列、统一改优先级/标签、标记完成、设阻塞、移入回收站/恢复 |
 | `sticky_note_to_task` / `sticky_task_to_note` | 墙 ↔ 板互转，双向写入关联 id |
 | `sticky_note_sync_to_task` | 单向把便签内容推到关联任务（保留任务优先级/标签/截止/列） |
 
@@ -119,19 +123,19 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 ## 数据
 
-单 JSON 文档，**`version: 3`**（v1/v2 文档读入即迁移：卡片补 `checklist: []` / `blocked: false`，settings 补 `lastBackupAt`，下次写入落 v3）：
+单 JSON 文档，**`version: 4`**（v1/v2/v3 文档读入即迁移：卡片补 `checklist: []` / `blocked: false` / `acceptance: ""`，看板补 `doneColumnId`（id 为 `done` 或标题为「完成/Done」的列，并把该列里的卡片补成完成），settings 补 `lastBackupAt`，下次写入落 v4）：
 
 ```jsonc
 {
-  "version": 2,
+  "version": 4,
   "rev": 12,                       // 每次落盘 +1，供面板轮询判断是否有外部改动
   "notes": [{ "id": "note-…", "lines": [{ "id": "l-…", "kind": "text|todo|ul|ol", "text": "", "done": false }],
               "text": "派生可读副本", "color": "amber", "pinned": false, "collapsed": false,
               "x": 0.12, "y": 0.2, "w": 240, "h": null, "trashed": false, "deletedAt": null,
               "linkedCardId": null, "rev": 3, "createdAt": 0, "updatedAt": 0 }],
-  "boards": [{ "id": "board-main", "title": "默认看板",
+  "boards": [{ "id": "board-main", "title": "默认看板", "doneColumnId": "done",
                "columns": [{ "id": "todo", "title": "待办", "order": 0 }, …],
-               "cards": [{ "id": "card-…", "title": "", "note": "", "columnId": "todo", "order": 0,
+               "cards": [{ "id": "card-…", "title": "", "note": "", "acceptance": "", "columnId": "todo", "order": 0,
                            "priority": "P2", "labels": [], "checklist": [{ "id": "item-…", "text": "子项", "done": false }],
                            "blocked": false, "blockedReason": null,
                            "dueDate": null, "done": false, "noteId": null,
@@ -142,6 +146,9 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ```
 
 - 卡片 `checklist`（schema v2）：每项 `{ id, text, done }`；最多 100 项、单项文本 300 字上限；整组替换式更新（UI 与工具一致）。
+- 卡片 `acceptance`（schema v4）：验收标准多行纯文本，2000 字上限；空串表示未填。
+- 看板 `doneColumnId`（schema v4）：完成列 id 或 `null`（不指定）。移入该列自动 `done: true`，移出自动 `false`；主板上被删列就是完成列时按剩余列重新推断。
+- 批量接口 `note.bulkUpdate` / `card.bulkUpdate`（schema v4）：整批一次 `mutate`，`rev` 只前进一次，撤销一步回退；`card.bulkUpdate` 的 `columnId` 会按 `ids` 顺序追加到目标列末尾。
 - 多块看板（上限 12），列完全自定义（上限 8 列）；**自定义列与看板重启后仍在**（旧版会塌回固定三列，M4 已修）。
 - 便签 `w` 夹到 180–520px；`h` 为 `null`（跟随内容）或 80–900px 的固定高度（拖右下角后变成固定值）。
 - 卡片操作永远作用于 `settings.activeBoardId` 指向的板，切换板不会搬动数据。
@@ -153,14 +160,14 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 单端点 `/api/sticky-board`：
 
 - `GET ?trash=1&q=…`：快照（含计数、列、回收站）；`q` 非空时 Host 只回匹配的便签与卡片，`counts` 仍是全局值
-- `POST { action, … }`：`note.create|update|remove|restore|toTask|tidy|trashMany`、`card.create|update|move|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列）、`locate`、`link`、`link.sync`、`settings.update`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
+- `POST { action, … }`：`note.create|update|bulkUpdate|remove|restore|toTask|tidy|trashMany`、`card.create|update|bulkUpdate|move|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列，`board.update` 可带 `doneColumnId`）、`locate`、`link`、`link.sync`、`settings.update`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
 
 ## 发布 / 分发
 
 决策 D2：**本地 tarball 发布**，不向公网 npm 发布（`@local/*` 作用域不适合公网）。
 
 - 许可：**MIT**（见 `LICENSE`；`package.json` 已声明 `license` / `author`、`private: false`）
-- 出包：`npm run release`（= `npm pack --pack-destination releases`）→ `releases/local-sticky-board-<version>.tgz`，15 个文件、约 74 KB（`index.js`、`client.js`、`lib/*.js`、`cordis.patch.yml`、`locale/*.json`、`icon.svg`、`package.json`、`README.md`、`CHANGELOG.md`、`LICENSE`）
+- 出包：`npm run release`（= `npm pack --pack-destination releases`）→ `releases/local-sticky-board-<version>.tgz`，15 个文件、约 84 KB（`index.js`、`client.js`、`lib/*.js`、`cordis.patch.yml`、`locale/*.json`、`icon.svg`、`package.json`、`README.md`、`CHANGELOG.md`、`LICENSE`）
 - 校验：`npm run pack:check`（清单）+ `releases/SHA256SUMS`（摘要）+ 产物解包后跑 `scripts/smoke.mjs`（Host 端到端）+ `node --check`
 - 装到别的机器：`plugin_manager action=install_bundle target=<tgz 绝对路径>`（或解包后装目录）；数据仍落在目标机的 `$DSH_HOME/sticky-board/board.json`
 - 升级：`remove_bundle` → `install_bundle`（新 tgz）→ 页面 `Ctrl+Shift+R`；Host 半热替换，无需重启 Harness
@@ -169,8 +176,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ## 开发与验证
 
 ```powershell
-npm test              # node --test：62 例（model/store + Client 渲染/交互/主题/弹窗 + lint 自查）
-npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（33 步）
+npm test              # node --test：66 例（model/store + Client 渲染/交互/主题/弹窗 + lint 自查）
+npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（36 步）
 npm run lint:client   # hooks 依赖顺序自查（防「面板空白」类渲染崩溃）
 npm run check:contrast # 明暗两套装饰色的 WCAG 对比度守卫
 npm run pack:check    # 校验 npm pack 会带上的文件（15 个）
@@ -212,7 +219,7 @@ node scripts/publish-github.mjs   # GH_TOKEN 需具备上述权限
   - 机器可读数据：[docs/ecosystem.json](docs/ecosystem.json)（DSH 版本、profile bundle、市场同类插件与 borrow/notBorrow 结论）
   - 追踪方法：[docs/生态追踪.md](docs/生态追踪.md)
   - 其他会话也可用 `mcp__github__get_file_contents(owner="moluz", repo="dsh-ecosystem", path="data/ecosystem.json")` 直接读取
-- 截至 2026-11-22：插件市场共 6487 条，其中便签墙/看板/todo 同类 15 个；本项目的差异点是**墙↔板双向联动 + 14 个模型工具与 UI 同源 + 跟随宿主明暗 + 零依赖**。
+- 截至 2026-11-22：插件市场共 6487 条，其中便签墙/看板/todo 同类 15 个；本项目的差异点是**墙↔板双向联动 + 16 个模型工具与 UI 同源 + 跟随宿主明暗 + 零依赖**。
 
 ## 目录
 
@@ -223,7 +230,7 @@ lib/model.js          # 纯函数：归一、行解析、排序、墙↔板转�
 lib/store.js          # JSON 持久化：懒加载、串行 mutate、原子写、损坏备份
 lib/repository.js     # 便签/任务/列/联动操作（UI 与工具共用）
 lib/route.js          # /api/sticky-board 路由与动作分发
-lib/tools.js          # 14 个模型工具定义
+lib/tools.js          # 16 个模型工具定义
 locale/{zh,en}.json   # 插件标题与描述
 LICENSE / CHANGELOG.md
 docs/                 # 调研与初步方案、验证记录、待办与已定决策

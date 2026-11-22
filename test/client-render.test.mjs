@@ -61,6 +61,7 @@ function fakeSnapshot() {
     board: {
       id: 'board-main',
       title: '默认看板',
+      doneColumnId: 'done',
       columns: [
         { id: 'todo', title: '待办', order: 0 },
         { id: 'doing', title: '进行中', order: 1 },
@@ -71,6 +72,7 @@ function fakeSnapshot() {
           id: 'card-bbbbbbbbbb',
           title: '卡片甲',
           note: '**重点** 与 `代码`',
+          acceptance: '验收：冒烟通过',
           columnId: 'todo',
           order: 0,
           priority: 'P1',
@@ -235,6 +237,8 @@ test('the panel renders a live snapshot (toolbar, board, card)', async () => {
     assert.match(boardHtml, /action\.filter/, 'board filter control');
     assert.match(boardHtml, /sb-stats/, 'board stats bar renders');
     assert.match(boardHtml, /stats\.blocked/, 'stats bar has a blocked count');
+    assert.match(boardHtml, /label\.doneColumn/, 'stats bar lets the user pick the done column');
+    assert.match(boardHtml, /sb-col-done/, 'the configured done column carries its ✓ marker');
     assert.match(boardHtml, /label\.blocked/, 'blocked chip renders on the card');
 
     // The "+" tab opens the board-template menu (it used to be clipped by the
@@ -263,6 +267,9 @@ test('the panel renders a live snapshot (toolbar, board, card)', async () => {
     assert.match(drawerHtml, /检查项一/, 'checklist items come from the snapshot');
     assert.match(drawerHtml, /label\.checklist 1\/2/, 'checklist progress in the label');
     assert.match(drawerHtml, /action\.preview/, 'drawer offers the markdown preview toggle');
+    assert.match(drawerHtml, /label\.acceptance/, 'drawer has an acceptance-criteria field');
+    assert.match(drawerHtml, /验收：冒烟通过/, 'acceptance text comes from the snapshot');
+    assert.match(boardHtml, /chip\.acceptance/, 'a card with acceptance criteria shows its chip');
   } finally {
     await act(async () => {
       reactRoot.unmount();
@@ -288,6 +295,15 @@ function createFakeHost(initial) {
       return { ok: true, status: 200, json: async () => ({ ...doc, undone: true }) };
     }
     if (!String(body.action).startsWith('card.')) return respond();
+    if (body.action === 'card.bulkUpdate') {
+      for (const id of Array.isArray(body.ids) ? body.ids : []) {
+        const entry = doc.board.cards.find((card) => card.id === id);
+        if (entry === undefined) continue;
+        Object.assign(entry, body.patch ?? {});
+        entry.rev = (entry.rev ?? 0) + 1;
+      }
+      return respond();
+    }
     const card = doc.board.cards.find((entry) => entry.id === body.id);
     if (card === undefined) return respond(404);
     if (body.action === 'card.update') {
@@ -527,6 +543,78 @@ test('wall view exposes density and colour filters', async () => {
       host.calls.some((call) => call.action === 'settings.update' && call.patch?.wallDensity === 'compact'),
       'density button persists the next preset',
     );
+  } finally {
+    await unmount();
+  }
+});
+
+test('the stats bar can change the done column', async () => {
+  const { container, host, unmount } = await mountPanel(fakeSnapshot());
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const picker = container.querySelector('[title="hint.doneColumn"]');
+    assert.ok(picker !== null, 'done-column picker exists in the stats bar');
+    await act(async () => {
+      picker.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    assert.match(container.innerHTML, /label\.doneColumn/, 'picker menu opens');
+    assert.match(container.innerHTML, /label\.noDoneColumn/, 'picker offers a "no done column" option');
+
+    const menu = container.querySelector('.sb-menu.sb-filter');
+    assert.ok(menu !== null, 'picker popover rendered');
+    const target = [...menu.querySelectorAll('button')].find((button) => button.textContent === '进行中');
+    assert.ok(target !== undefined, 'every column is listed');
+    await act(async () => {
+      target.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const sent = host.calls.find((call) => call.action === 'board.update');
+    assert.ok(sent !== undefined, 'picking a column writes the board');
+    assert.equal(sent.patch.doneColumnId, 'doing');
+  } finally {
+    await unmount();
+  }
+});
+
+test('multi-selected cards toggle done in one bulk write', async () => {
+  const payload = fakeSnapshot();
+  const second = structuredClone(payload.board.cards[0]);
+  second.id = 'card-cccccccccc';
+  second.title = '卡片乙';
+  second.order = 1;
+  second.noteId = null;
+  second.checklist = [];
+  second.acceptance = '';
+  payload.board.cards.push(second);
+
+  const { container, host, unmount } = await mountPanel(payload);
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    for (const id of ['card-bbbbbbbbbb', 'card-cccccccccc']) {
+      const card = container.querySelector(`[data-card-id="${id}"]`);
+      assert.ok(card !== null, `card ${id} exists`);
+      await act(async () => {
+        card.dispatchEvent(new window.MouseEvent('click', { bubbles: true, ctrlKey: true }));
+      });
+    }
+    const selbar = container.querySelector('.sb-selbar');
+    assert.ok(selbar !== null, 'selection bar appears for two cards');
+    const doneButton = [...selbar.querySelectorAll('button')].find((button) => button.textContent === 'action.done');
+    assert.ok(doneButton !== undefined, 'batch done button exists');
+    await act(async () => {
+      doneButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const bulk = host.calls.find((call) => call.action === 'card.bulkUpdate');
+    assert.ok(bulk !== undefined, 'one bulk request instead of one update per card');
+    assert.deepEqual(bulk.ids, ['card-bbbbbbbbbb', 'card-cccccccccc']);
+    assert.equal(bulk.patch.done, true);
   } finally {
     await unmount();
   }

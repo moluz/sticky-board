@@ -18,6 +18,18 @@ const TOKEN = process.env.GH_TOKEN;
 if (!TOKEN) throw new Error('GH_TOKEN missing');
 
 const root = process.cwd();
+const { version: VERSION } = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'));
+
+/** The newest CHANGELOG section becomes the commit body; the version stays in sync. */
+function changelogSection(version) {
+  const text = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8');
+  const start = text.indexOf(`## ${version}`);
+  if (start === -1) return '';
+  const next = text.indexOf('\n## ', start + 3);
+  return text.slice(start, next === -1 ? undefined : next).trim().slice(0, 4000);
+}
+
+const COMMIT_MESSAGE = `release: @local/sticky-board ${VERSION}\n\n${changelogSection(VERSION)}`;
 const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
   .split('\u0000')
   .map((line) => line.trim())
@@ -95,7 +107,7 @@ const commit = await json(
   await api('/git/commits', {
     method: 'POST',
     body: JSON.stringify({
-      message: 'release: @local/sticky-board 0.16.0\n\n便签墙 + 任务板 DSH 插件：\n- 明暗主题巡检（--sb-* 变量 + 宿主 theme/change）\n- 多步撤销/重做（Ctrl+Z）\n- 自绘确认弹窗 + 统一危险操作文案\n- 卡片 checklist（schema v2）、看板模板、单向同步到任务\n- 57 单测 / 32 步 Host 冒烟 / 对比度与打包校验\n',
+      message: COMMIT_MESSAGE,
       tree: createdTree.sha,
       parents: baseSha === null ? [] : [baseSha],
     }),
