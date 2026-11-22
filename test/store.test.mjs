@@ -24,7 +24,7 @@ async function readJson(filePath) {
  * 加载
  * ------------------------------------------------------------------ */
 
-test('旧版 v1 文档加载后视为 v4：卡片补 checklist/acceptance，写回时落 v4', async (t) => {
+test('旧版 v1 文档加载后视为 v5：卡片补 checklist/acceptance/acceptedAt，写回时落 v5', async (t) => {
   const dir = await makeTempDir(t);
   const filePath = path.join(dir, 'board.json');
   await fs.writeFile(
@@ -49,10 +49,11 @@ test('旧版 v1 文档加载后视为 v4：卡片补 checklist/acceptance，写�
 
   const store = createStore({ filePath });
   const doc = await store.ready;
-  assert.equal(doc.version, 4, 'v1 is read as v4');
+  assert.equal(doc.version, 5, 'v1 is read as v5');
   const legacyCard = doc.boards[0].cards[0];
   assert.deepEqual(legacyCard.checklist, [], 'migrated cards get an empty checklist');
   assert.equal(legacyCard.acceptance, '', 'migrated cards get empty acceptance criteria');
+  assert.equal(legacyCard.acceptedAt, null, 'migrated cards are not accepted');
   assert.equal(legacyCard.title, '旧卡');
   assert.equal(doc.boards[0].doneColumnId, null, 'a one-column board has no inferred done column');
 
@@ -60,7 +61,7 @@ test('旧版 v1 文档加载后视为 v4：卡片补 checklist/acceptance，写�
     current.boards[0].cards[0].checklist.push({ text: '迁移后新项', done: false });
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 4);
+  assert.equal(onDisk.version, 5);
   assert.equal(onDisk.boards[0].cards[0].checklist[0].text, '迁移后新项');
 });
 
@@ -119,9 +120,9 @@ test('mutate 写盘后重新 createStore 读到同样内容', async (t) => {
 
   const text = await fs.readFile(filePath, 'utf8');
   assert.ok(text.endsWith('\n')); // 文件末尾带换行
-  assert.ok(text.includes('\n  "version": 4')); // 2 空格缩进
+  assert.ok(text.includes('\n  "version": 5')); // 2 空格缩进
   const onDisk = JSON.parse(text);
-  assert.equal(onDisk.version, 4);
+  assert.equal(onDisk.version, 5);
   assert.equal(onDisk.rev, 1);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '你好');
@@ -292,7 +293,7 @@ test('损坏 JSON 文件：改名备份、空文档重建、之后可正常写�
     current.notes.push(normalizeNote({ lines: [{ kind: 'text', text: '恢复后第一条' }] }, 5));
   });
   const onDisk = await readJson(filePath);
-  assert.equal(onDisk.version, 4);
+  assert.equal(onDisk.version, 5);
   assert.equal(onDisk.notes.length, 1);
   assert.equal(onDisk.notes[0].text, '恢复后第一条');
 });
@@ -463,7 +464,7 @@ test('快照列表与恢复：恢复前留 restore-backup、可撤销、rev 前�
   assert.equal(restored.value.day, entry.day);
   assert.equal(store.snapshot().notes.length, 1);
   assert.equal(store.snapshot().notes[0].text, '快照前');
-  assert.equal(store.snapshot().version, 4, 'a v3 snapshot is migrated on restore');
+  assert.equal(store.snapshot().version, 5, 'a v3 snapshot is migrated on restore');
   assert.ok(store.revision() > revBefore, 'rev keeps moving so pollers notice');
 
   const safety = await readJson(restored.value.safetyPath);

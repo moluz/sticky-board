@@ -2,6 +2,14 @@
 
 Notable changes to `@local/sticky-board`. Versions are local (not published).
 
+## 0.20.0
+
+- Schema v5: cards gain `acceptedAt` (timestamp or null) as a second state next to `done` — AI/work completion vs human acceptance. v1–v4 documents are read as v5; only v3-and-earlier documents still backfill `done` from the done column, so v4 state is preserved. Acceptance is cleared whenever `done` becomes false (manual un-toggle or leaving the done column).
+- Panel: the drawer shows 未完成 / 待验收 / 已验收 with a 标记已验收 / 取消验收 action (accept requires `done`); cards show a yellow 待验收 or green 已验收 chip; the stats bar gains a 待验收 count that filters on click, and the filter popover gains 只看待验收.
+- Human acceptance gate: `sticky_task_update` has no acceptance parameter — the model can mark work done but cannot accept it; `sticky_task_list` / `sticky_board_get` report accepted and pending counts.
+- Multi-select polish: the note selection bar labels its colour button 改色 (was `●●`), and the pin action toggles to 取消置顶 when every selected note is pinned (one bulk write either way).
+- Tests: 75 unit tests (model v5 acceptance rules + v4 migration scope, render acceptance flow and pin toggle) and 38 smoke steps.
+
 ## 0.19.0
 
 - Column quick-add: the “＋ 添加任务” button now opens an inline input instead of creating a placeholder card titled 添加任务. `Enter` adds the card and keeps the composer open for the next one, `Esc` closes it, and blank titles create nothing.

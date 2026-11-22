@@ -308,6 +308,56 @@ await step('card acceptance criteria round-trip through the route and the tools'
   }
 });
 
+await step('acceptance is a second state only the panel can set', async () => {
+  const base = (await get(route)).body.counts;
+  const created = await post(route, 'card.create', { card: { title: '验收状态任务', columnId: 'todo' } });
+  const cardId = created.body.card.id;
+  assert.equal(created.body.card.acceptedAt, null);
+
+  // 未完成时不能验收
+  const early = await post(route, 'card.update', { id: cardId, patch: { accepted: true } });
+  assert.equal(early.body.card.acceptedAt, null, 'accepting an open card is ignored');
+
+  const done = await post(route, 'card.update', { id: cardId, patch: { done: true } });
+  assert.equal(done.body.counts.pendingAcceptance, base.pendingAcceptance + 1);
+  assert.equal(done.body.counts.accepted, base.accepted);
+
+  const accepted = await post(route, 'card.update', { id: cardId, patch: { accepted: true } });
+  assert.ok(accepted.body.card.acceptedAt > 0);
+  assert.equal(accepted.body.counts.accepted, base.accepted + 1);
+  assert.equal(accepted.body.counts.pendingAcceptance, base.pendingAcceptance);
+
+  // 工具没有 accepted 参数：同时传 done 时只改完成，不会动验收戳
+  const viaTool = await tools.get('sticky_task_update').execute({ id: cardId, done: true, accepted: false }, {});
+  assert.match(viaTool.text, /已验收/);
+  const stillAccepted = (await get(route)).body.board.cards.find((card) => card.id === cardId);
+  assert.ok(stillAccepted.acceptedAt > 0, 'tool args cannot clear acceptance');
+
+  // 取消完成 → 验收戳清空
+  const reopened = await post(route, 'card.update', { id: cardId, patch: { done: false } });
+  assert.equal(reopened.body.card.acceptedAt, null);
+  assert.equal(reopened.body.counts.pendingAcceptance, base.pendingAcceptance);
+
+  // 移入完成列自动完成（待验收 +1）；验收后移出完成列，验收戳清空
+  const moved = await post(route, 'card.move', { id: cardId, columnId: 'done' });
+  assert.equal(moved.body.card.done, true);
+  assert.equal(moved.body.counts.pendingAcceptance, base.pendingAcceptance + 1);
+  await post(route, 'card.update', { id: cardId, patch: { accepted: true } });
+  const left = await post(route, 'card.move', { id: cardId, columnId: 'todo' });
+  assert.equal(left.body.card.done, false);
+  assert.equal(left.body.card.acceptedAt, null);
+
+  // 工具列表标记待验收 / 已验收
+  await post(route, 'card.update', { id: cardId, patch: { done: true } });
+  const pending = await tools.get('sticky_task_list').execute({ query: '验收状态任务' }, {});
+  assert.match(pending.text, /pending-accept/);
+  await post(route, 'card.update', { id: cardId, patch: { accepted: true } });
+  const acceptedList = await tools.get('sticky_task_list').execute({ query: '验收状态任务' }, {});
+  assert.match(acceptedList.text, /accepted/);
+
+  await post(route, 'card.remove', { id: cardId, permanent: true });
+});
+
 await step('trash, restore and purge a note', async () => {
   const removed = await post(route, 'note.remove', { id: noteId });
   assert.equal(removed.body.ok, true);
@@ -367,14 +417,14 @@ await step('settings and export round-trip', async () => {
   assert.equal(settings.body.settings.activeView, 'board');
   const exported = await post(route, 'export');
   assert.equal(exported.body.ok, true);
-  assert.equal(exported.body.document.version, 4);
+  assert.equal(exported.body.document.version, 5);
   const imported = await post(route, 'import', { document: exported.body.document, mode: 'merge' });
   assert.equal(imported.body.ok, true);
 });
 
 await step('document survives a reload from disk', async () => {
   const raw = JSON.parse(await readFile(storePath, 'utf8'));
-  assert.equal(raw.version, 4);
+  assert.equal(raw.version, 5);
   assert.ok(Array.isArray(raw.boards) && raw.boards.length === 1);
   assert.ok(raw.rev > 0);
 });
@@ -838,7 +888,7 @@ await step('daily snapshots can be listed and restored through the route', async
   assert.equal(snapshot.body.notes.length, 1);
   assert.equal(snapshot.body.notes[0].text, '快照前');
   const exported = await post(snapshotRoute, 'export');
-  assert.equal(exported.body.document.version, 4, 'a v3 snapshot is migrated on restore');
+  assert.equal(exported.body.document.version, 5, 'a v3 snapshot is migrated on restore');
   const safety = JSON.parse(await readFile(`${snapshotFile}.restore-backup`, 'utf8'));
   assert.equal(safety.notes.length, 2, 'the pre-restore document was kept aside');
 

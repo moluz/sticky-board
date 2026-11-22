@@ -85,6 +85,7 @@ function fakeSnapshot() {
           ],
           dueDate: '2026-12-01',
           done: false,
+          acceptedAt: null,
           noteId: 'note-aaaaaaaaaa',
           trashed: false,
           deletedAt: null,
@@ -101,6 +102,8 @@ function fakeSnapshot() {
       pinned: 0,
       cards: 1,
       done: 0,
+      accepted: 0,
+      pendingAcceptance: 0,
       notesTrash: 0,
       cardsTrash: 0,
       byColumn: { todo: 1, doing: 0, done: 0 },
@@ -269,6 +272,13 @@ test('the panel renders a live snapshot (toolbar, board, card)', async () => {
     assert.match(drawerHtml, /action\.preview/, 'drawer offers the markdown preview toggle');
     assert.match(drawerHtml, /label\.acceptance/, 'drawer has an acceptance-criteria field');
     assert.match(drawerHtml, /验收：冒烟通过/, 'acceptance text comes from the snapshot');
+    assert.match(drawerHtml, /label\.acceptanceState/, 'drawer has the acceptance state');
+    assert.match(drawerHtml, /state\.notDone/, 'an open card is not done yet');
+    assert.match(drawerHtml, /hint\.acceptNeedsDone/, 'the drawer explains acceptance needs done');
+    const acceptButton = [...container.querySelectorAll('.sb-drawer button')]
+      .find((button) => button.textContent === 'action.accept');
+    assert.ok(acceptButton !== undefined, 'accept action exists');
+    assert.equal(acceptButton.disabled, true, 'accept is disabled until the card is done');
     assert.match(boardHtml, /chip\.acceptance/, 'a card with acceptance criteria shows its chip');
   } finally {
     await act(async () => {
@@ -307,12 +317,23 @@ function createFakeHost(initial) {
     if (body.action === 'backup.restore') {
       return { ok: true, status: 200, json: async () => ({ ...doc, restored: true, day: body.day }) };
     }
+    if (body.action === 'note.bulkUpdate') {
+      for (const id of Array.isArray(body.ids) ? body.ids : []) {
+        const note = doc.notes.find((entry) => entry.id === id);
+        if (note === undefined) continue;
+        Object.assign(note, body.patch ?? {});
+        note.rev = (note.rev ?? 0) + 1;
+      }
+      return respond();
+    }
     if (!String(body.action).startsWith('card.')) return respond();
     if (body.action === 'card.bulkUpdate') {
       for (const id of Array.isArray(body.ids) ? body.ids : []) {
         const entry = doc.board.cards.find((card) => card.id === id);
         if (entry === undefined) continue;
-        Object.assign(entry, body.patch ?? {});
+        const patch = { ...(body.patch ?? {}) };
+        if (patch.done === false) patch.acceptedAt = null;
+        Object.assign(entry, patch);
         entry.rev = (entry.rev ?? 0) + 1;
       }
       return respond();
@@ -329,6 +350,12 @@ function createFakeHost(initial) {
           done: item.done === true,
         }));
       }
+      const nextDone = Object.prototype.hasOwnProperty.call(patch, 'done') ? patch.done === true : card.done === true;
+      if (Object.prototype.hasOwnProperty.call(patch, 'accepted')) {
+        patch.acceptedAt = patch.accepted === true && nextDone ? Date.now() : null;
+        delete patch.accepted;
+      }
+      if (nextDone !== true) patch.acceptedAt = null;
       Object.assign(card, patch);
     }
     card.rev = (card.rev ?? 0) + 1;
@@ -756,6 +783,116 @@ test('the ⋯ menu restores a daily snapshot after picking one', async () => {
     assert.ok(restored !== undefined, 'restoring posts backup.restore');
     assert.equal(restored.day, '2026-11-20');
     assert.equal(container.querySelector('.sb-modal.sb-backup'), null, 'the dialog closes after restoring');
+  } finally {
+    await unmount();
+  }
+});
+
+test('acceptance: pending chip, stats filter and the accept action', async () => {
+  const payload = fakeSnapshot();
+  const doneCard = structuredClone(payload.board.cards[0]);
+  doneCard.id = 'card-dddddddddd';
+  doneCard.title = '已完成卡';
+  doneCard.order = 1;
+  doneCard.done = true;
+  doneCard.acceptedAt = null;
+  doneCard.noteId = null;
+  doneCard.checklist = [];
+  doneCard.acceptance = '';
+  payload.board.cards.push(doneCard);
+
+  const { container, host, unmount } = await mountPanel(payload);
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    assert.match(container.innerHTML, /state\.pendingAccept/, 'done cards show the pending-acceptance chip');
+
+    const stat = [...container.querySelectorAll('.sb-stat')]
+      .find((button) => String(button.textContent).startsWith('stats.pendingAccept'));
+    assert.ok(stat !== undefined, 'stats bar has a pending-acceptance count');
+    assert.match(stat.textContent, /1$/, 'one card is waiting for acceptance');
+    await act(async () => {
+      stat.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    assert.equal(
+      container.querySelector('[data-card-id="card-bbbbbbbbbb"]'),
+      null,
+      'the pending filter hides cards that are not done',
+    );
+    const doneEl = container.querySelector('[data-card-id="card-dddddddddd"]');
+    assert.ok(doneEl !== null, 'the pending card stays visible');
+    await act(async () => {
+      doneEl.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+
+    const drawer = container.querySelector('.sb-drawer');
+    assert.ok(drawer !== null, 'the drawer opens');
+    assert.match(drawer.textContent, /state\.pendingAccept/, 'drawer shows pending acceptance');
+    const accept = [...drawer.querySelectorAll('button')].find((button) => button.textContent === 'action.accept');
+    assert.ok(accept !== undefined, 'accept action exists');
+    assert.equal(accept.disabled, false, 'a done card can be accepted');
+    await act(async () => {
+      accept.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const sent = host.calls.find((call) => call.action === 'card.update' && call.patch?.accepted === true);
+    assert.ok(sent !== undefined, 'accepting posts accepted: true');
+    assert.match(container.querySelector('.sb-drawer').textContent, /state\.accepted/, 'the drawer shows accepted');
+    assert.ok(
+      host.doc().board.cards.find((card) => card.id === 'card-dddddddddd').acceptedAt > 0,
+      'the Host stored an acceptance timestamp',
+    );
+  } finally {
+    await unmount();
+  }
+});
+
+test('note multi-select shows 改色 and toggles pin / unpin', async () => {
+  const payload = fakeSnapshot();
+  const second = structuredClone(payload.notes[0]);
+  second.id = 'note-bbbbbbbbbb';
+  second.lines = [{ id: 'l-bbbbbbbbbb', kind: 'text', text: '便签乙' }];
+  second.text = '便签乙';
+  second.linkedCardId = null;
+  payload.notes.push(second);
+  payload.counts.notes = 2;
+
+  const { container, host, unmount } = await mountPanel(payload);
+  try {
+    const first = container.querySelector('[data-note-id="note-aaaaaaaaaa"]');
+    const secondEl = container.querySelector('[data-note-id="note-bbbbbbbbbb"]');
+    assert.ok(first !== null && secondEl !== null, 'both notes render');
+    await act(async () => {
+      first.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {
+      secondEl.dispatchEvent(new window.MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    });
+    const selbar = container.querySelector('.sb-selbar');
+    assert.ok(selbar !== null, 'note selection bar appears');
+    assert.match(selbar.textContent, /action\.recolor/, 'the colour button now says 改色');
+
+    const pin = [...selbar.querySelectorAll('button')].find((button) => button.textContent === 'action.pin');
+    assert.ok(pin !== undefined, 'pin action exists');
+    await act(async () => {
+      pin.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const pinnedCall = host.calls.find((call) => call.action === 'note.bulkUpdate');
+    assert.ok(pinnedCall !== undefined, 'pin uses one bulk write');
+    assert.equal(pinnedCall.patch.pinned, true);
+
+    const unpin = [...container.querySelector('.sb-selbar').querySelectorAll('button')]
+      .find((button) => button.textContent === 'action.unpin');
+    assert.ok(unpin !== undefined, 'the button toggles to 取消置顶 when all selected are pinned');
+    await act(async () => {
+      unpin.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+    const calls = host.calls.filter((call) => call.action === 'note.bulkUpdate');
+    assert.equal(calls.at(-1).patch.pinned, false, 'second click unpins via bulk update');
   } finally {
     await unmount();
   }

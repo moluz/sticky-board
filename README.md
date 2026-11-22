@@ -58,15 +58,16 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 - 三列起步（待办 / 进行中 / 完成），可加列、改名、删列（列内卡片自动迁到第一列）；**自定义列重启后仍在**
 - **完成列可配置**：统计条右侧「完成列 ▾」指定当前看板哪一列代表「完成」（默认三列板是「完成」；五列模板自动认「完成」；也可以选「不指定完成列」）。卡片移入该列自动标记完成、移出自动清除，列头显示绿色 ✓
 - **验收标准**：卡片新增 `acceptance` 多行文本（≤2000 字），抽屉里写「什么算做完」，卡片上显示「验收」胶囊；模型工具的建/改/列表同样支持
+- **验收状态（schema v5）**：完成（AI/工作完成）与验收（人确认）是两个独立状态。`done` 的卡显示黄色「待验收」，人在抽屉点「标记已验收」后变绿色「已验收」并记录时间；取消完成或拖出完成列会清掉验收戳。**工具只读验收状态、不能代替人验收**
 - **拖动列头左侧 `⠿` 手柄可调整列顺序**（拖到哪一列就占据那一列的位置：向右拖 2 格就是移 2 格）；列内卡片拖拽换列/排序（HTML5 拖放，松手即保存）；**拖到看板左右边缘自动横向滚动、拖到长列上下边缘自动纵向滚动**
 - **列内快速录入**：点列底「＋ 添加任务」出现内联输入框，`Enter` 添加并保持输入框（可连续录入）、`Esc` 关闭；空标题不建卡，不再生成标题为「添加任务」的占位卡
 - 优先级色条（P0–P3）、截止日期（过期标黄）、标签、完成勾选
 - **阻塞**：抽屉里勾选「阻塞」并填原因（≤200 字），卡片显示红色「阻塞」胶囊，筛选条可「只看阻塞」
-- **统计条**：看板 tab 下方一行——各列计数、`P0+P1`、逾期、阻塞；点后三者即套用对应筛选
+- **统计条**：看板 tab 下方一行——各列计数、`P0+P1`、逾期、阻塞、**待验收**；点后四者即套用对应筛选
 - **拖动时有插入指示线**：悬停卡片显示其上方蓝线（插到它前面），悬停列空白处显示末尾蓝线
 - **筛选条**：优先级 P0–P3 多选、只看未完成、只看逾期、按标签子串过滤；按钮上显示生效条件数，弹出层底部可「清除筛选」。**筛选生效时禁用卡片拖动**（过滤后的列表算插入位会错位）
 - **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 在**同一列内**连选（跨列时退回单选，不跨列）；选中后表头出现一组蓝底操作条「已选 N / 完成 / 移到 ▾ / 删除」（「移到」是自绘弹出菜单，列出各列），`Delete` 批量移入回收站（toast 可撤销）；**完成/移到走 `card.bulkUpdate`，整批只写一次、撤销一步回退**
-- **单击卡片**直接打开右侧详情抽屉（按住 `Ctrl/Cmd/Shift` 时只做多选，不打开）；抽屉里可改标题、描述、**验收标准（多行，写清「什么算做完」）**、优先级（P0–P3 分段按钮）、截止、标签、**检查项（子任务：勾选 / 行内改名 / 删除 / 添加，标题显示 3/5 进度）**；**描述可切换「预览」**（轻量 Markdown：粗体/斜体/行内代码/链接/列表/小标题），抽屉头部显示「已保存 HH:MM:SS」；关联便签时此行提供 **「同步便签内容」**（D1 单向：覆盖任务标题与描述，保留优先级/标签/截止/完成/列）与「取消关联」；底部一排三个等宽**描边**按钮：**完成（绿）/ 转为便签（蓝）/ 删除（红）**，完成是开关，已完成时绿色描边加粗并带 ✓；卡片元信息里会显示 `☑ 1/2` 进度胶囊与「验收」胶囊
+- **单击卡片**直接打开右侧详情抽屉（按住 `Ctrl/Cmd/Shift` 时只做多选，不打开）；抽屉里可改标题、描述、**验收标准（多行，写清「什么算做完」）**、**验收状态（完成 / 待验收 / 已验收 + 标记已验收）**、优先级（P0–P3 分段按钮）、截止、标签、**检查项（子任务：勾选 / 行内改名 / 删除 / 添加，标题显示 3/5 进度）**；**描述可切换「预览」**（轻量 Markdown：粗体/斜体/行内代码/链接/列表/小标题），抽屉头部显示「已保存 HH:MM:SS」；关联便签时此行提供 **「同步便签内容」**（D1 单向：覆盖任务标题与描述，保留优先级/标签/截止/完成/列）与「取消关联」；底部一排三个等宽**描边**按钮：**完成（绿）/ 转为便签（蓝）/ 删除（红）**，完成是开关，已完成时绿色描边加粗并带 ✓；卡片元信息里会显示 `☑ 1/2` 进度、`验收` 与 `待验收 / 已验收` 胶囊
 - 卡片上的 🔗 可点：跳到关联便签（便签上的 🔗 反过来跳到任务，自动切视图 + 定位/高亮；跨板会自动切换看板）；**跳转后目标会自动滚动到视野内并闪烁一圈蓝光**
 
 **回收站**：便签与任务分两组列出，**支持多选**：全选 / 恢复选中 / 彻底删除选中，另有一键「清空回收站」（顶部操作条与「⋯」菜单各有一个入口）。
@@ -115,7 +116,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 | `sticky_board_manage` | 看板管理：`list` / `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete` / **`doneColumn`（设置当前看板的完成列，`columnId` 传空串即取消）** / `undo` / `redo`（任务工具总是作用于当前活动板） |
 | `sticky_note_list` / `sticky_note_create` / `sticky_note_update` / `sticky_note_remove` | 便签的查、建、改、删（默认软删） |
 | `sticky_note_bulk` | **墙级批量**：一次给多张便签统一改色 / 置顶 / 移入回收站 / 恢复（整批一次写入，undo 一步回退） |
-| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist` 与 **`acceptance`**，`update` 支持 `blocked` / `blockedReason`；列表输出带 `☑ d/n` 进度、`blocked` 标记与 `验收:` 摘要 |
+| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist` 与 **`acceptance`**，`update` 支持 `blocked` / `blockedReason`，但**没有验收参数**（验收只能由人在面板操作）；列表输出带 `☑ d/n` 进度、`blocked`、`accepted` / `pending-accept` 标记与 `验收:` 摘要 |
 | `sticky_task_bulk` | **板级批量**：一次移动多张任务到某列、统一改优先级/标签、标记完成、设阻塞、移入回收站/恢复 |
 | `sticky_note_to_task` / `sticky_task_to_note` | 墙 ↔ 板互转，双向写入关联 id |
 | `sticky_note_sync_to_task` | 单向把便签内容推到关联任务（保留任务优先级/标签/截止/列） |
@@ -124,11 +125,11 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 ## 数据
 
-单 JSON 文档，**`version: 4`**（v1/v2/v3 文档读入即迁移：卡片补 `checklist: []` / `blocked: false` / `acceptance: ""`，看板补 `doneColumnId`（id 为 `done` 或标题为「完成/Done」的列，并把该列里的卡片补成完成），settings 补 `lastBackupAt`，下次写入落 v4）：
+单 JSON 文档，**`version: 5`**（v1–v4 文档读入即迁移：卡片补 `checklist: []` / `blocked: false` / `acceptance: ""` / `acceptedAt: null`，看板补 `doneColumnId`（id 为 `done` 或标题为「完成/Done」的列；只有 v3 及更早才把该列里的卡片补成完成），settings 补 `lastBackupAt`，下次写入落 v5）：
 
 ```jsonc
 {
-  "version": 4,
+  "version": 5,
   "rev": 12,                       // 每次落盘 +1，供面板轮询判断是否有外部改动
   "notes": [{ "id": "note-…", "lines": [{ "id": "l-…", "kind": "text|todo|ul|ol", "text": "", "done": false }],
               "text": "派生可读副本", "color": "amber", "pinned": false, "collapsed": false,
@@ -139,7 +140,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
                "cards": [{ "id": "card-…", "title": "", "note": "", "acceptance": "", "columnId": "todo", "order": 0,
                            "priority": "P2", "labels": [], "checklist": [{ "id": "item-…", "text": "子项", "done": false }],
                            "blocked": false, "blockedReason": null,
-                           "dueDate": null, "done": false, "noteId": null,
+                           "dueDate": null, "done": false, "acceptedAt": null, "noteId": null,
                            "trashed": false, "deletedAt": null, "rev": 1, "createdAt": 0, "updatedAt": 0 }] }],
   "settings": { "activeView": "wall", "wallDensity": "auto", "activeBoardId": "board-main", "lastBackupAt": "2026-11-22" },
   "updatedAt": 0
@@ -148,6 +149,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 - 卡片 `checklist`（schema v2）：每项 `{ id, text, done }`；最多 100 项、单项文本 300 字上限；整组替换式更新（UI 与工具一致）。
 - 卡片 `acceptance`（schema v4）：验收标准多行纯文本，2000 字上限；空串表示未填。
+- 卡片 `acceptedAt`（schema v5）：人已验收的时间戳或 `null`；只有 `done: true` 的卡才能带上，取消完成 / 移出完成列会自动清空。验收只能从面板发起（`card.update` 的 `accepted` 补丁），工具没有这个参数。
 - 看板 `doneColumnId`（schema v4）：完成列 id 或 `null`（不指定）。移入该列自动 `done: true`，移出自动 `false`；主板上被删列就是完成列时按剩余列重新推断。
 - 批量接口 `note.bulkUpdate` / `card.bulkUpdate`（schema v4）：整批一次 `mutate`，`rev` 只前进一次，撤销一步回退；`card.bulkUpdate` 的 `columnId` 会按 `ids` 顺序追加到目标列末尾。
 - 多块看板（上限 12），列完全自定义（上限 8 列）；**自定义列与看板重启后仍在**（旧版会塌回固定三列，M4 已修）。
@@ -177,8 +179,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ## 开发与验证
 
 ```powershell
-npm test              # node --test：71 例（model/store + Client 渲染/交互/主题/弹窗/快照恢复 + lint 自查）
-npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（37 步）
+npm test              # node --test：75 例（model/store + Client 渲染/交互/主题/弹窗/快照恢复/验收状态 + lint 自查）
+npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（38 步）
 npm run lint:client   # hooks 依赖顺序自查（防「面板空白」类渲染崩溃）
 npm run check:contrast # 明暗两套装饰色的 WCAG 对比度守卫
 npm run pack:check    # 校验 npm pack 会带上的文件（15 个）

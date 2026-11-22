@@ -84,6 +84,16 @@ window.__ModuleLoader__.load({
       'label.acceptance': '验收标准',
       'placeholder.acceptance': '写清「什么算做完」…可多行',
       'chip.acceptance': '验收',
+      'label.acceptanceState': '验收',
+      'state.accepted': '已验收',
+      'state.pendingAccept': '待验收',
+      'state.notDone': '未完成',
+      'action.accept': '标记已验收',
+      'action.unaccept': '取消验收',
+      'hint.acceptNeedsDone': '先标记完成才能验收',
+      'stats.pendingAccept': '待验收',
+      'label.pendingAcceptOnly': '只看待验收',
+      'action.recolor': '改色',
       'stats.priority': 'P0+P1',
       'stats.overdue': '逾期',
       'stats.blocked': '阻塞',
@@ -241,6 +251,16 @@ window.__ModuleLoader__.load({
       'label.acceptance': 'Acceptance criteria',
       'placeholder.acceptance': 'What counts as done… multiple lines allowed',
       'chip.acceptance': 'Acceptance',
+      'label.acceptanceState': 'Acceptance',
+      'state.accepted': 'Accepted',
+      'state.pendingAccept': 'To accept',
+      'state.notDone': 'Not done',
+      'action.accept': 'Mark accepted',
+      'action.unaccept': 'Withdraw acceptance',
+      'hint.acceptNeedsDone': 'Mark the task done before accepting it',
+      'stats.pendingAccept': 'To accept',
+      'label.pendingAcceptOnly': 'To accept only',
+      'action.recolor': 'Recolor',
       'stats.priority': 'P0+P1',
       'stats.overdue': 'Overdue',
       'stats.blocked': 'Blocked',
@@ -423,6 +443,7 @@ window.__ModuleLoader__.load({
 .sb-root[data-sb-density="cozy"] .sb-note-body{font-size:13px;line-height:1.7;padding:4px 12px 10px}
 .sb-chip[data-kind="warn"]{color:var(--dsw-alias-state-warn-primary,var(--sb-warn));border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,var(--sb-warn)) 40%,transparent)}
 .sb-chip[data-kind="brand"]{color:var(--dsw-alias-brand-primary,#4f8cff);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#4f8cff) 40%,transparent)}
+.sb-chip[data-kind="success"]{color:var(--sb-success);border-color:color-mix(in srgb,var(--sb-success) 45%,transparent);background:color-mix(in srgb,var(--sb-success) 12%,transparent)}
 .sb-check{flex:none;margin:2px 0 0;accent-color:var(--dsw-alias-state-success-primary,#3f9f6f)}
 .sb-col-add{cursor:pointer;border:1px dashed var(--dsw-alias-border-l2,#232a36);background:transparent;color:var(--dsw-alias-label-secondary,#93a1bb);border-radius:6px;padding:4px;font:inherit;font-size:11px;width:100%;margin-top:2px}
 .sb-col-add:hover{color:var(--dsw-alias-label-primary,#e6edf7);border-color:var(--dsw-alias-border-l1,#333d4d)}
@@ -1201,6 +1222,11 @@ window.__ModuleLoader__.load({
                     title: card.acceptance,
                   }, t('chip.acceptance'))
                 : null,
+              card.acceptedAt !== null && card.acceptedAt !== undefined
+                ? h('span', { className: 'sb-chip', 'data-kind': 'success' }, t('state.accepted'))
+                : card.done === true
+                  ? h('span', { className: 'sb-chip', 'data-kind': 'warn' }, t('state.pendingAccept'))
+                  : null,
               linked
                 ? h('span', {
                     className: 'sb-chip',
@@ -1811,6 +1837,7 @@ window.__ModuleLoader__.load({
 
         const items = Array.isArray(card.checklist) ? card.checklist : [];
         const doneItems = items.filter((item) => item.done === true).length;
+        const accepted = card.acceptedAt !== null && card.acceptedAt !== undefined;
 
         /** Replace the checklist (schema v2: one array, whole-set updates). */
         function saveChecklist(next) {
@@ -2044,6 +2071,39 @@ window.__ModuleLoader__.load({
                     },
                   })
                 : null,
+            ),
+            h(
+              'div',
+              { className: 'sb-field' },
+              h(
+                'div',
+                { className: 'sb-field-row' },
+                h('span', { className: 'sb-field-label' }, t('label.acceptanceState')),
+                h(
+                  'span',
+                  {
+                    className: 'sb-chip',
+                    'data-kind': accepted ? 'success' : card.done === true ? 'warn' : undefined,
+                  },
+                  accepted ? t('state.accepted') : card.done === true ? t('state.pendingAccept') : t('state.notDone'),
+                ),
+              ),
+              h(
+                'div',
+                { className: 'sb-row' },
+                accepted
+                  ? h(Btn, { onClick: () => void save({ accepted: false }) }, t('action.unaccept'))
+                  : h(Btn, {
+                      primary: true,
+                      disabled: card.done !== true,
+                      onClick: () => void save({ accepted: true }),
+                    }, t('action.accept')),
+                accepted
+                  ? h('span', { className: 'sb-status' }, clock(card.acceptedAt))
+                  : card.done !== true
+                    ? h('span', { className: 'sb-status' }, t('hint.acceptNeedsDone'))
+                    : null,
+              ),
             ),
             linkedNote !== undefined
               ? h(
@@ -2431,7 +2491,7 @@ window.__ModuleLoader__.load({
         const [doneMenuOpen, setDoneMenuOpen] = useState(false);
         const [notePaletteOpen, setNotePaletteOpen] = useState(false);
         const [filterOpen, setFilterOpen] = useState(false);
-        const [filters, setFilters] = useState({ priorities: [], openOnly: false, overdueOnly: false, blockedOnly: false, label: '' });
+        const [filters, setFilters] = useState({ priorities: [], openOnly: false, overdueOnly: false, blockedOnly: false, pendingAcceptOnly: false, label: '' });
         const [wallFilterOpen, setWallFilterOpen] = useState(false);
         const [noteColors, setNoteColors] = useState([]);
         const [pinnedOnly, setPinnedOnly] = useState(false);
@@ -2646,7 +2706,7 @@ window.__ModuleLoader__.load({
         const boards = data?.boards ?? [];
         const activeBoardId = data?.activeBoardId ?? board?.id ?? '';
         const allCards = board?.cards ?? [];
-        const counts = data?.counts ?? { notes: 0, cards: 0, pinned: 0, notesTrash: 0, cardsTrash: 0 };
+        const counts = data?.counts ?? { notes: 0, cards: 0, pinned: 0, notesTrash: 0, cardsTrash: 0, accepted: 0, pendingAcceptance: 0 };
         const densityValue = data?.settings?.wallDensity ?? 'auto';
         const doneColumn = (board?.columns ?? []).find((column) => column.id === board?.doneColumnId);
         const needle = query.trim().toLowerCase();
@@ -2685,6 +2745,7 @@ window.__ModuleLoader__.load({
           (filters.openOnly === true ? 1 : 0) +
           (filters.overdueOnly === true ? 1 : 0) +
           (filters.blockedOnly === true ? 1 : 0) +
+          (filters.pendingAcceptOnly === true ? 1 : 0) +
           (filters.label.trim() !== '' ? 1 : 0);
         const filtersActive = filterCount > 0;
         const labelNeedle = filters.label.trim().toLowerCase();
@@ -2695,6 +2756,12 @@ window.__ModuleLoader__.load({
               if (filters.openOnly === true && card.done === true) return false;
               if (filters.overdueOnly === true && !isOverdue(card.dueDate)) return false;
               if (filters.blockedOnly === true && card.blocked !== true) return false;
+              if (
+                filters.pendingAcceptOnly === true &&
+                !(card.done === true && (card.acceptedAt === null || card.acceptedAt === undefined))
+              ) {
+                return false;
+              }
               if (labelNeedle !== '' && !(card.labels ?? []).some((label) => label.toLowerCase().includes(labelNeedle))) {
                 return false;
               }
@@ -2703,6 +2770,11 @@ window.__ModuleLoader__.load({
         const statPriority = allCards.filter((card) => card.trashed !== true && (card.priority === 'P0' || card.priority === 'P1')).length;
         const statOverdue = allCards.filter((card) => card.trashed !== true && isOverdue(card.dueDate)).length;
         const statBlocked = allCards.filter((card) => card.trashed !== true && card.blocked === true).length;
+        const statPendingAcceptance = allCards.filter(
+          (card) => card.trashed !== true && card.done === true && (card.acceptedAt === null || card.acceptedAt === undefined),
+        ).length;
+        const selectedNotesAllPinned =
+          noteSelection.size > 0 && [...noteSelection].every((id) => notes.find((note) => note.id === id)?.pinned === true);
 
         /** Toggle one paper colour in the wall filter. */
         function toggleNoteColor(color) {
@@ -2727,7 +2799,7 @@ window.__ModuleLoader__.load({
 
         /** Clear every board filter. */
         function resetFilters() {
-          setFilters({ priorities: [], openOnly: false, overdueOnly: false, label: '' });
+          setFilters({ priorities: [], openOnly: false, overdueOnly: false, blockedOnly: false, pendingAcceptOnly: false, label: '' });
         }
 
         /** Pick (or clear) the column that marks cards done on the active board. */
@@ -3160,12 +3232,13 @@ window.__ModuleLoader__.load({
           return true;
         }
 
-        /** Pin every selected note. */
+        /** Pin every selected note, or unpin them when all are already pinned. */
         async function pinSelected() {
           const ids = [...noteSelection];
           if (ids.length === 0) return;
-          await call('note.bulkUpdate', { ids, patch: { pinned: true } });
-          showToast({ text: `${t('action.pin')} · ${ids.length}` });
+          const allPinned = ids.every((id) => notes.find((note) => note.id === id)?.pinned === true);
+          await call('note.bulkUpdate', { ids, patch: { pinned: !allPinned } });
+          showToast({ text: `${allPinned ? t('action.unpin') : t('action.pin')} · ${ids.length}` });
         }
 
         /** Turn every selected note into a task. */
@@ -3552,7 +3625,7 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { className: 'sb-menu-wrap', ref: notePaletteRef },
-                  h(Btn, { onClick: () => setNotePaletteOpen((on) => !on), title: t('action.color') }, '●●'),
+                  h(Btn, { onClick: () => setNotePaletteOpen((on) => !on), title: t('action.color') }, `●● ${t('action.recolor')}`),
                   notePaletteOpen
                     ? h(Palette, {
                         current: '',
@@ -3561,7 +3634,7 @@ window.__ModuleLoader__.load({
                       })
                     : null,
                 ),
-                h(Btn, { onClick: () => void pinSelected() }, t('action.pin')),
+                h(Btn, { onClick: () => void pinSelected() }, selectedNotesAllPinned ? t('action.unpin') : t('action.pin')),
                 h(Btn, { onClick: () => void taskSelected() }, t('action.toTask')),
                 h(Btn, { danger: true, onClick: () => deleteSelected() }, t('action.delete')),
               )
@@ -3661,6 +3734,17 @@ window.__ModuleLoader__.load({
                           onChange: () => setFilters((current) => ({ ...current, blockedOnly: current.blockedOnly !== true })),
                         }),
                         h('span', null, t('label.blocked')),
+                      ),
+                      h(
+                        'label',
+                        { className: 'sb-filter-check' },
+                        h('input', {
+                          type: 'checkbox',
+                          className: 'sb-check',
+                          checked: filters.pendingAcceptOnly,
+                          onChange: () => setFilters((current) => ({ ...current, pendingAcceptOnly: current.pendingAcceptOnly !== true })),
+                        }),
+                        h('span', null, t('label.pendingAcceptOnly')),
                       ),
                       h('input', {
                         className: 'sb-input',
@@ -3812,6 +3896,16 @@ window.__ModuleLoader__.load({
                   onClick: () => setFilters((current) => ({ ...current, blockedOnly: current.blockedOnly !== true })),
                 },
                 `${t('stats.blocked')} ${statBlocked}`,
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'sb-stat',
+                  'data-on': filters.pendingAcceptOnly === true ? 'true' : undefined,
+                  onClick: () => setFilters((current) => ({ ...current, pendingAcceptOnly: current.pendingAcceptOnly !== true })),
+                },
+                `${t('stats.pendingAccept')} ${statPendingAcceptance}`,
               ),
               h(
                 'div',
