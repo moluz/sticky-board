@@ -4,6 +4,7 @@
 [![License](https://img.shields.io/github/license/moluz/sticky-board)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-57%20passed-brightgreen)](#开发与验证)
 [![Smoke](https://img.shields.io/badge/host%20smoke-32%20steps-blue)](#开发与验证)
+[![Checks](https://img.shields.io/badge/checks-lint%20%2B%20contrast%20%2B%20pack-8a93a6)](#开发与验证)
 ![DSH](https://img.shields.io/badge/DSH-%E2%89%A5%200.2.1--rc.4-4f8cff)
 [![Downloads](https://img.shields.io/github/downloads/moluz/sticky-board/total)](https://github.com/moluz/sticky-board/releases)
 
