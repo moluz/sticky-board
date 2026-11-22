@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-22T20:20:00+08:00",
+  "generatedAt": "2026-11-22T20:39:51+08:00",
   "generatedBy": "DSH session (agent) via plugin_manager list_bundles + plugin_market list_plugins",
   "dsh": {
     "version": "0.2.2-rc.5",
@@ -37,8 +37,8 @@
   "pluginMarket": {
     "indexUrl": "https://cdn.jsdelivr.net/npm/dsh-plugin-catalog/index.json",
     "indexTitle": "Awesome DSH Plugin",
-    "totalEntries": 6487,
-    "notes": "totalEntries 为 2026-11-22 快照；市场每天变化，引用前请刷新。"
+    "totalEntries": 6554,
+    "notes": "totalEntries 为 2026-11-22 快照（环比 6487 增 67 条，+1.0%，未达需说明的 5% 阈值）；市场每天变化，引用前请刷新。"
   },
   "adjacentPlugins": [
     {
@@ -64,8 +64,8 @@
     {
       "name": "@goodandready/dsh-kanban",
       "repo": "https://github.com/GooDAnDReaDY/dsh-kanban",
-      "version": "0.2.43",
-      "published": "2026-11-14",
+      "version": "0.2.46",
+      "published": "2026-11-21",
       "category": "workflow",
       "summary": "Gitea 支撑的看板，列工作流 + 每任务独立 agent session。",
       "borrow": "外部数据源适配思路",
@@ -190,6 +190,106 @@
       "summary": "浮层便签本：目录、文本编辑、图片粘贴、本地持久化。",
       "borrow": "极低录入成本（打开即可记）",
       "notBorrow": "无看板/工具能力"
+    },
+    {
+      "name": "@alpacachen/dsh-kanban",
+      "repo": "https://github.com/alpacachen/dsh-kanban",
+      "version": "1.13.1",
+      "published": "2026-11-19",
+      "category": "workflow",
+      "summary": "看板 + 可复用工作流双模式：与 Agent 共管工作区任务，拖拽卡片、搜索、优先级、标签、截止日期，卡片内支持 Markdown、图片与评论。",
+      "borrow": "卡片内评论/图片与优先级、截止日期的一体化排版",
+      "notBorrow": "「看板 + 可复用工作流」双模式（会引入流程引擎的维护面）"
+    },
+    {
+      "name": "dsh-todo-board",
+      "repo": "https://github.com/sueqet/dsh-todo-board",
+      "version": "0.13.5",
+      "published": "2026-10-23",
+      "category": "ui",
+      "summary": "跨会话 TODO 浮窗板：按工作目录分组、拖拽排序，每条待办带执行模式与可选定时，AI 完成与用户验收分两个勾选框。",
+      "borrow": "「AI 已完成 / 用户已验收」双状态勾选",
+      "notBorrow": "每条待办绑定执行模式与定时执行（会话编排）"
+    },
+    {
+      "name": "dsh-todo-time-log",
+      "repo": "https://github.com/FantasyStarry/dsh-todo-time-log",
+      "version": "0.8.0",
+      "published": "2026-11-21",
+      "category": "workflow",
+      "summary": "待办自动记录创建/完成时间，表格、看板、甘特、日历四视图共用同一份数据与筛选，支持分类/优先级/类型、@工作区文件与 JSON/CSV 导入导出。",
+      "borrow": "多视图（墙/板）共享同一份数据与同一套筛选状态",
+      "notBorrow": "甘特与日历视图（偏离便签墙↔看板的定位）"
+    },
+    {
+      "name": "dsh-global-todo",
+      "repo": "https://github.com/LUgABeEEE/dsh-global-todo",
+      "version": "0.23.2",
+      "published": "2026-11-05",
+      "category": "ui",
+      "summary": "侧栏全局跨会话待办，人与 agent 共用一份：10 个 global_todo_* 工具，可挂文档链接、追加进展，派发结果记回条目；清单存单个 JSON。",
+      "borrow": "派发结果回写到条目本身 + 单 JSON 存储（与我们同构）",
+      "notBorrow": "四种「交给会话」的派发方式"
+    },
+    {
+      "name": "@chaiyahang/dsh-scratchpad",
+      "repo": "https://github.com/Chaiyahang/dsh-scratchpad",
+      "version": "0.3.7",
+      "published": "2026-11-21",
+      "category": "ui",
+      "summary": "左栏便签：标签、图片/文件附件、Markdown 待办、发到对话、快捷键唤起、JSON 导入导出，另有 Agent 工具。",
+      "borrow": "「发到对话」的单向输出入口与快捷键唤起",
+      "notBorrow": "固定在左栏的常驻面板（我们保持主面板自由摆放）"
+    },
+    {
+      "name": "dsh-aside-note",
+      "repo": "https://github.com/Rayle8/dsh-aside-note",
+      "version": "1.2.1",
+      "published": "2026-11-21",
+      "category": "ui",
+      "summary": "对话旁的便笺 + 待办清单：右上角入口带未完成角标，可拖拽调宽；默认同一工作区共享一份，可切回当前会话；存宿主文件，可转发到输入框。",
+      "borrow": "「工作区共享 / 当前会话」的作用域切换与未完成角标",
+      "notBorrow": "以便笺+清单混合体替代看板（列语义会退化）"
+    },
+    {
+      "name": "dsh-noteboard",
+      "repo": "https://github.com/boogoo619/dsh-noteboard",
+      "version": "0.3.1",
+      "published": "2026-11-09",
+      "category": "memory",
+      "summary": "工作区级无限画布便签：可手建、从对话摘录或由 AI 提炼，便签以 Markdown 文件保存并可作为上下文；12 个模型工具 + 5 个内置技能。",
+      "borrow": "从对话一键摘录/提炼成便签的单向入口",
+      "notBorrow": "便签以独立 Markdown 文件为权威源（多文件写入无原子性）"
+    },
+    {
+      "name": "dsh-todo-notes",
+      "repo": "https://github.com/BlazeNebula/dsh-todo-notes",
+      "version": "1.0.4",
+      "published": "2026-11-11",
+      "category": "ui",
+      "summary": "三区 TODO 便签（用户/工作区/会话）：嵌套文件夹、同一条目多处引用、T0~T9 优先级、拖动排序、浮窗或右侧栏页签，写工具每次经审批。",
+      "borrow": "写工具逐次审批 + 同一条目多处引用的表达",
+      "notBorrow": "三区（用户/工作区/会话）叠加的层级模型"
+    },
+    {
+      "name": "@kira905/dsh-task-board-local",
+      "repo": "https://github.com/kira905/dsh-task-board-local",
+      "version": "1.2.2",
+      "published": "2026-11-19",
+      "category": "workflow",
+      "summary": "自维护的网页任务看板：人工验收闸门、卡片类型，已执行的卡片可加可编辑备注。",
+      "borrow": "人工验收闸门：卡片不能由 agent 直接判定完成",
+      "notBorrow": "卡片类型体系（超出我们的列 + 标签模型）"
+    },
+    {
+      "name": "@philomelcc/dsh-idea-wall",
+      "repo": "https://github.com/philomelcc/dsh-idea-wall",
+      "version": "0.1.2",
+      "published": "2026-11-17",
+      "category": "ui",
+      "summary": "便签墙：在会话里说一句「我有一个灵感」，插件自动总结、打标签并挂到墙上。",
+      "borrow": "一句话触发的自动上墙入口（把录入成本压到接近零）",
+      "notBorrow": "由模型自动总结生成便签正文（内容不可控、难回改）"
     }
   ],
   "nonDshReferences": [
