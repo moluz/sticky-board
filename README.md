@@ -170,6 +170,24 @@ npm run pack:check    # 校验 npm pack 会带上的文件（15 个）
 node --check client.js
 ```
 
+CI 在 GitHub Actions（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）：`unit` / `smoke` / `checks` 三个 job，push `main` 与 PR 都跑。
+
+### 维护 CI 工作流（权限注意）
+
+`.github/workflows/**` 属于 GitHub 的特殊受保护路径，API 写入要求 token 具备：
+
+- 细粒度 PAT：**Workflows: Read and write**（外加 Contents 读写）；或
+- classic PAT：`repo` + **`workflow`** scope（临时用，用完即删）。
+
+`scripts/publish-github.mjs` 默认**跳过 `.github/**`**（没权限时创建 tree 会 403）；改完工作流后这样推：
+
+```powershell
+$env:SB_PUBLISH_WORKFLOWS = '1'
+node scripts/publish-github.mjs   # GH_TOKEN 需具备上述权限
+```
+
+也可以在 GitHub 网页直接编辑该文件（会自动触发一次 CI）。
+
 ## 明暗主题
 
 - 容器、文字、边框全部走宿主 token（自动明暗）；**装饰色**（选中/强调/成功/危险/优先级/多选提示）收敛为 `--sb-*` CSS 变量，默认深色值，`[data-sb-scheme="light"]` 给浅色覆盖。
