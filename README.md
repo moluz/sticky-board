@@ -67,6 +67,7 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 - **拖动时有插入指示线**：悬停卡片显示其上方蓝线（插到它前面），悬停列空白处显示末尾蓝线
 - **筛选条**：优先级 P0–P3 多选、只看未完成、只看逾期、按标签子串过滤；按钮上显示生效条件数，弹出层底部可「清除筛选」。**筛选生效时禁用卡片拖动**（过滤后的列表算插入位会错位）
 - **多选**：`Ctrl/Cmd+点击` 增减、`Shift+点击` 在**同一列内**连选（跨列时退回单选，不跨列）；选中后表头出现一组蓝底操作条「已选 N / 完成 / 移到 ▾ / 删除」（「移到」是自绘弹出菜单，列出各列），`Delete` 批量移入回收站（toast 可撤销）；**完成/移到走 `card.bulkUpdate`，整批只写一次、撤销一步回退**
+- **跨板移动**：多选卡片后「移到 ▾」先列本板列，再列其他看板；点其他看板进入该板的列，选中即整批移动（一次写入、一步撤销）。卡片 id 与便签关联保留；目标列是目标板的完成列则标记完成，离开源完成列则清完成与验收
 - **单击卡片**直接打开右侧详情抽屉（按住 `Ctrl/Cmd/Shift` 时只做多选，不打开）；抽屉里可改标题、描述、**验收标准（多行，写清「什么算做完」）**、**验收状态（完成 / 待验收 / 已验收 + 标记已验收）**、优先级（P0–P3 分段按钮）、截止、标签、**检查项（子任务：勾选 / 行内改名 / 删除 / 添加，标题显示 3/5 进度）**；**描述可切换「预览」**（轻量 Markdown：粗体/斜体/行内代码/链接/列表/小标题），抽屉头部显示「已保存 HH:MM:SS」；关联便签时此行提供 **「同步便签内容」**（D1 单向：覆盖任务标题与描述，保留优先级/标签/截止/完成/列）与「取消关联」；底部一排三个等宽**描边**按钮：**完成（绿）/ 转为便签（蓝）/ 删除（红）**，完成是开关，已完成时绿色描边加粗并带 ✓；卡片元信息里会显示 `☑ 1/2` 进度、`验收` 与 `待验收 / 已验收` 胶囊
 - 卡片上的 🔗 可点：跳到关联便签（便签上的 🔗 反过来跳到任务，自动切视图 + 定位/高亮；跨板会自动切换看板）；**跳转后目标会自动滚动到视野内并闪烁一圈蓝光**
 
@@ -113,11 +114,11 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 | 工具 | 作用 |
 |---|---|
 | `sticky_board_get` | 全局状态：便签/任务数量、看板列表与当前活动板、各列数量（标注完成列）、数据文件路径 |
-| `sticky_board_manage` | 看板管理：`list` / `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete` / **`doneColumn`（设置当前看板的完成列，`columnId` 传空串即取消）** / `undo` / `redo`（任务工具总是作用于当前活动板） |
+| `sticky_board_manage` | 看板管理：`list`（列出每块板的列 id、标题与完成列）/ `select` / `create`（可选 `template: three|five|blank`）/ `rename` / `delete` / **`doneColumn`（设置当前看板的完成列，`columnId` 传空串即取消）** / `undo` / `redo` |
 | `sticky_note_list` / `sticky_note_create` / `sticky_note_update` / `sticky_note_remove` | 便签的查、建、改、删（默认软删） |
 | `sticky_note_bulk` | **墙级批量**：一次给多张便签统一改色 / 置顶 / 移入回收站 / 恢复（整批一次写入，undo 一步回退） |
-| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；建/改支持 `checklist` 与 **`acceptance`**，`update` 支持 `blocked` / `blockedReason`，但**没有验收参数**（验收只能由人在面板操作）；列表输出带 `☑ d/n` 进度、`blocked`、`accepted` / `pending-accept` 标记与 `验收:` 摘要 |
-| `sticky_task_bulk` | **板级批量**：一次移动多张任务到某列、统一改优先级/标签、标记完成、设阻塞、移入回收站/恢复 |
+| `sticky_task_list` / `sticky_task_create` / `sticky_task_update` / `sticky_task_move` / `sticky_task_remove` | 任务的查、建、改、移动、删；`sticky_task_move` 可带 `boardId` 跨板移动；建/改支持 `checklist` 与 **`acceptance`**，`update` 支持 `blocked` / `blockedReason`，但**没有验收参数**（验收只能由人在面板操作）；列表输出带 `☑ d/n` 进度、`blocked`、`accepted` / `pending-accept` 标记与 `验收:` 摘要 |
+| `sticky_task_bulk` | **板级批量**：一次移动多张任务到某列、统一改优先级/标签、标记完成、设阻塞、移入回收站/恢复；**给 `boardId` + `columnId` 可整批跨板移动**（不能与其他字段混用） |
 | `sticky_note_to_task` / `sticky_task_to_note` | 墙 ↔ 板互转，双向写入关联 id |
 | `sticky_note_sync_to_task` | 单向把便签内容推到关联任务（保留任务优先级/标签/截止/列） |
 
@@ -162,8 +163,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 
 单端点 `/api/sticky-board`：
 
-- `GET ?trash=1&q=…`：快照（含计数、列、回收站）；`q` 非空时 Host 只回匹配的便签与卡片，`counts` 仍是全局值
-- `POST { action, … }`：`note.create|update|bulkUpdate|remove|restore|toTask|tidy|trashMany`、`card.create|update|bulkUpdate|move|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列，`board.update` 可带 `doneColumnId`）、`locate`、`link`、`link.sync`、`settings.update`、`backup.list|restore`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
+- `GET ?trash=1&q=…`：快照（含计数、列、回收站）；`boards[]` 每项带 `columns` / `doneColumnId`（跨板菜单用）；`q` 非空时 Host 只回匹配的便签与卡片，`counts` 仍是全局值
+- `POST { action, … }`：`note.create|update|bulkUpdate|remove|restore|toTask|tidy|trashMany`、`card.create|update|bulkUpdate|move|moveToBoard|remove|restore|toNote|trashMany`、`column.add|update|remove|move`、`board.list|add|update|remove|select|move`（`board.add` 可带 `columns: string[]` 播下列，`board.update` 可带 `doneColumnId`）、`locate`、`link`、`link.sync`、`settings.update`、`backup.list|restore`、`export`、`import`、`trash.clear|restoreMany|purgeMany`；每个成功响应都带新快照
 
 ## 发布 / 分发
 
@@ -179,8 +180,8 @@ plugin_manager action=install_bundle target=<tgz 绝对路径>
 ## 开发与验证
 
 ```powershell
-npm test              # node --test：75 例（model/store + Client 渲染/交互/主题/弹窗/快照恢复/验收状态 + lint 自查）
-npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（38 步）
+npm test              # node --test：76 例（model/store + Client 渲染/交互/主题/弹窗/快照恢复/验收状态/跨板菜单 + lint 自查）
+npm run smoke         # Host 端到端：假 ctx → apply → 驱动路由与工具（39 步）
 npm run lint:client   # hooks 依赖顺序自查（防「面板空白」类渲染崩溃）
 npm run check:contrast # 明暗两套装饰色的 WCAG 对比度守卫
 npm run pack:check    # 校验 npm pack 会带上的文件（15 个）

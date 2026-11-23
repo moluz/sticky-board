@@ -326,6 +326,18 @@ function createFakeHost(initial) {
       }
       return respond();
     }
+    if (body.action === 'card.moveToBoard') {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...doc,
+          moved: Array.isArray(body.ids) ? body.ids.length : 1,
+          boardId: body.boardId,
+          columnId: body.columnId,
+        }),
+      };
+    }
     if (!String(body.action).startsWith('card.')) return respond();
     if (body.action === 'card.bulkUpdate') {
       for (const id of Array.isArray(body.ids) ? body.ids : []) {
@@ -849,8 +861,7 @@ test('acceptance: pending chip, stats filter and the accept action', async () =>
   }
 });
 
-test('note multi-select shows 改色 and toggles pin / unpin', async () => {
-  const payload = fakeSnapshot();
+test('note multi-select shows 改色 and toggles pin / unpin', async () => {  const payload = fakeSnapshot();
   const second = structuredClone(payload.notes[0]);
   second.id = 'note-bbbbbbbbbb';
   second.lines = [{ id: 'l-bbbbbbbbbb', kind: 'text', text: '便签乙' }];
@@ -893,6 +904,66 @@ test('note multi-select shows 改色 and toggles pin / unpin', async () => {
     await act(async () => {});
     const calls = host.calls.filter((call) => call.action === 'note.bulkUpdate');
     assert.equal(calls.at(-1).patch.pinned, false, 'second click unpins via bulk update');
+  } finally {
+    await unmount();
+  }
+});
+
+test('the move menu can send a card to another board column', async () => {
+  const payload = fakeSnapshot();
+  payload.boards.push({
+    id: 'board-two',
+    title: '副板',
+    cards: 0,
+    columns: [
+      { id: 'todo-two', title: '待办' },
+      { id: 'done-two', title: '完成' },
+    ],
+    doneColumnId: 'done-two',
+  });
+
+  const { container, host, unmount } = await mountPanel(payload);
+  try {
+    const boardTab = container.querySelectorAll('.sb-tab')[1];
+    await act(async () => {
+      boardTab.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const card = container.querySelector('[data-card-id="card-bbbbbbbbbb"]');
+    await act(async () => {
+      card.dispatchEvent(new window.MouseEvent('click', { bubbles: true, ctrlKey: true }));
+    });
+    const selbar = container.querySelector('.sb-selbar');
+    assert.ok(selbar !== null, 'selection bar appears');
+    const moveButton = [...selbar.querySelectorAll('button')].find((button) => button.textContent === 'action.moveTo ▾');
+    assert.ok(moveButton !== undefined, 'move menu button exists');
+
+    await act(async () => {
+      moveButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const menu = container.querySelector('.sb-menu-wrap .sb-menu');
+    assert.ok(menu !== null, 'move menu opens');
+    assert.match(menu.textContent, /label\.thisBoard/, 'menu labels the current board section');
+    assert.match(menu.textContent, /→ 副板/, 'other boards are listed');
+    const otherBoard = [...menu.querySelectorAll('button')].find((button) => button.textContent === '→ 副板');
+    await act(async () => {
+      otherBoard.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    const drill = container.querySelector('.sb-menu-wrap .sb-menu');
+    assert.match(drill.textContent, /副板/, 'the second level names the target board');
+    assert.match(drill.textContent, /完成/, 'the target board columns are listed');
+    const targetColumn = [...drill.querySelectorAll('button')].find((button) => button.textContent === '完成');
+    assert.ok(targetColumn !== undefined, 'target column exists');
+    await act(async () => {
+      targetColumn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    });
+    await act(async () => {});
+
+    const sent = host.calls.find((call) => call.action === 'card.moveToBoard');
+    assert.ok(sent !== undefined, 'moving to another board posts card.moveToBoard');
+    assert.deepEqual(sent.ids, ['card-bbbbbbbbbb']);
+    assert.equal(sent.boardId, 'board-two');
+    assert.equal(sent.columnId, 'done-two');
+    assert.equal(container.querySelector('.sb-selbar'), null, 'selection is cleared after moving');
   } finally {
     await unmount();
   }

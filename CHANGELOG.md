@@ -2,6 +2,14 @@
 
 Notable changes to `@local/sticky-board`. Versions are local (not published).
 
+## 0.21.0
+
+- Cross-board card moves: `POST card.moveToBoard` accepts `ids` (or one `id`), a target `boardId` and an optional `columnId`; the batch removes the cards from their source boards, compacts the source columns, appends them to the target column in ids order, and applies the target board's done-column rule. Leaving a source done column clears `done` + acceptance even when the target has no done column. One serialized write, one undo step.
+- Snapshot `boards[]` now carries each board's `columns` and `doneColumnId`, so the panel can build the target column menu without another request; `board.list` exposes the same.
+- Panel: multiselect “移到 ▾” is now two levels — current board columns first, then the other boards; picking another board opens its columns (with 返回), and the batch moves in one request. Card ids and note links are preserved.
+- Tools: `sticky_task_move` accepts `boardId`; `sticky_task_bulk` accepts `boardId` + `columnId` for a batch cross-board move (not mixed with other fields); `sticky_board_manage list` prints every board's column ids and done column.
+- Tests: 76 unit tests (render cross-board menu, smoke route/tool moves with done/acceptance rules) and 39 smoke steps.
+
 ## 0.20.0
 
 - Schema v5: cards gain `acceptedAt` (timestamp or null) as a second state next to `done` — AI/work completion vs human acceptance. v1–v4 documents are read as v5; only v3-and-earlier documents still backfill `done` from the done column, so v4 state is preserved. Acceptance is cleared whenever `done` becomes false (manual un-toggle or leaving the done column).

@@ -603,6 +603,95 @@ await step('each board keeps its own cards', async () => {
   }
 });
 
+await step('cards can move to another board with done/acceptance rules', async () => {
+  const before = await get(route);
+  const sourceBoard = before.body.activeBoardId;
+  const sourceColumn = before.body.board.columns[0].id;
+  const sourceDone = before.body.board.doneColumnId;
+  assert.ok(sourceDone !== null, 'the default board has a done column');
+  const created = await post(route, 'card.create', { card: { title: '跨板卡', priority: 'P1' } });
+  const cardId = created.body.card.id;
+  await post(route, 'card.update', { id: cardId, patch: { done: true, accepted: true } });
+
+  const added = await post(route, 'board.add', { title: '跨板目标', columns: ['待办', '完成'] });
+  const targetBoard = added.body.activeBoardId;
+  const [targetTodo, targetDone] = added.body.board.columns;
+  assert.equal(added.body.board.doneColumnId, targetDone.id);
+
+  // 移到目标板的完成列：完成 + 已有验收戳保留
+  const moved = await post(route, 'card.moveToBoard', { ids: [cardId], boardId: targetBoard, columnId: targetDone.id });
+  assert.equal(moved.body.moved, 1);
+  assert.equal(moved.body.boardId, targetBoard);
+  assert.equal(moved.body.boardTitle, '跨板目标');
+  const onTarget = (await get(route)).body.board.cards.find((card) => card.id === cardId);
+  assert.equal(onTarget.columnId, targetDone.id);
+  assert.equal(onTarget.done, true);
+  assert.ok(onTarget.acceptedAt > 0, 'acceptance survives a board move');
+
+  // 移到目标板的待办列：完成与验收都清掉
+  const reopened = await post(route, 'card.moveToBoard', { ids: [cardId], boardId: targetBoard, columnId: targetTodo.id });
+  assert.equal(reopened.body.moved, 1);
+  const after = (await get(route)).body.board.cards.find((card) => card.id === cardId);
+  assert.equal(after.done, false);
+  assert.equal(after.acceptedAt, null);
+
+  // 源板不再有这张卡，且 boards[] 带列信息供面板两级菜单使用
+  await post(route, 'board.select', { id: sourceBoard });
+  const sourceSnap = await get(route);
+  assert.equal(sourceSnap.body.board.cards.some((card) => card.id === cardId), false);
+  const targetEntry = sourceSnap.body.boards.find((board) => board.id === targetBoard);
+  assert.deepEqual(targetEntry.columns.map((column) => column.title), ['待办', '完成']);
+  assert.equal(targetEntry.doneColumnId, targetDone.id);
+
+  // 工具批量跨板
+  const one = await post(route, 'card.create', { card: { title: '工具跨板甲' } });
+  const two = await post(route, 'card.create', { card: { title: '工具跨板乙' } });
+  const viaBulk = await tools.get('sticky_task_bulk').execute(
+    { ids: [one.body.card.id, two.body.card.id], boardId: targetBoard, columnId: targetDone.id },
+    {},
+  );
+  assert.match(viaBulk.text, /2 \/ 2/);
+  await post(route, 'board.select', { id: targetBoard });
+  const toolCards = (await get(route)).body.board.cards.filter((card) => ['工具跨板甲', '工具跨板乙'].includes(card.title));
+  assert.equal(toolCards.length, 2);
+  assert.equal(toolCards.every((card) => card.done === true), true);
+
+  // 工具单张跨板回源板
+  const viaMove = await tools.get('sticky_task_move').execute({ id: cardId, boardId: sourceBoard, columnId: sourceColumn }, {});
+  assert.match(viaMove.text, /移到看板/);
+  await post(route, 'board.select', { id: sourceBoard });
+  assert.equal((await get(route)).body.board.cards.some((card) => card.id === cardId), true);
+
+  // 目标板没有完成列时，离开源完成列也要清掉完成
+  await post(route, 'card.move', { id: cardId, columnId: sourceDone });
+  const plain = await post(route, 'board.add', { title: '无完成列板', columns: ['甲'] });
+  const plainBoardId = plain.body.activeBoardId;
+  const plainColumn = plain.body.board.columns[0].id;
+  await post(route, 'card.moveToBoard', { ids: [cardId], boardId: plainBoardId, columnId: plainColumn });
+  const plainCard = (await get(route)).body.board.cards.find((card) => card.id === cardId);
+  assert.equal(plainCard.done, false, 'leaving a done column clears done even without a target done column');
+  await post(route, 'board.select', { id: sourceBoard });
+  await post(route, 'card.moveToBoard', { ids: [cardId], boardId: sourceBoard, columnId: sourceColumn });
+  await post(route, 'board.remove', { id: plainBoardId });
+
+  // 错误码：缺 boardId 400 / 看板不存在 404 / 列不存在 400
+  assert.equal((await post(route, 'card.moveToBoard', { ids: [cardId] })).status, 400);
+  assert.equal((await post(route, 'card.moveToBoard', { ids: [cardId], boardId: 'board-nope' })).status, 404);
+  assert.equal(
+    (await post(route, 'card.moveToBoard', { ids: [cardId], boardId: sourceBoard, columnId: 'col-nope' })).status,
+    400,
+  );
+
+  // 收拾：删目标板与工具卡，回源板删跨板卡
+  await post(route, 'board.select', { id: targetBoard });
+  for (const card of (await get(route)).body.board.cards) {
+    await post(route, 'card.remove', { id: card.id, permanent: true });
+  }
+  await post(route, 'board.remove', { id: targetBoard });
+  await post(route, 'board.select', { id: sourceBoard });
+  await post(route, 'card.remove', { id: cardId, permanent: true });
+});
+
 await step('card.trashMany moves many cards to the trash', async () => {
   const before = (await get(route)).body.counts.cardsTrash;
   const a = await post(route, 'card.create', { card: { title: '批量卡 A' } });

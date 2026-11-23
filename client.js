@@ -118,6 +118,9 @@ window.__ModuleLoader__.load({
       'hint.multi': '已选多张便签：Delete 删除、Ctrl/Cmd+点击增减、Esc 取消',
       'hint.multiCards': '已选多张任务：Delete 删除、Shift 同列连选、Esc 取消',
       'action.moveTo': '移到',
+      'label.thisBoard': '本板',
+      'label.otherBoards': '其他看板',
+      'toast.movedToBoard': '已移到看板',
       'toast.trashed': '已移入回收站',
       'toast.purged': '已彻底删除',
       'toast.restored': '已恢复',
@@ -285,6 +288,9 @@ window.__ModuleLoader__.load({
       'hint.multi': 'Multiple notes selected: Delete removes them, Ctrl/Cmd+click toggles, Esc clears',
       'hint.multiCards': 'Multiple tasks selected: Delete removes them, Shift extends inside a column, Esc clears',
       'action.moveTo': 'Move to',
+      'label.thisBoard': 'This board',
+      'label.otherBoards': 'Other boards',
+      'toast.movedToBoard': 'Moved to board',
       'toast.trashed': 'Moved to trash',
       'toast.purged': 'Deleted permanently',
       'toast.restored': 'Restored',
@@ -2488,6 +2494,7 @@ window.__ModuleLoader__.load({
         const [toast, setToast] = useState(null);
         const [menuOpen, setMenuOpen] = useState(false);
         const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+        const [moveBoardId, setMoveBoardId] = useState(null);
         const [doneMenuOpen, setDoneMenuOpen] = useState(false);
         const [notePaletteOpen, setNotePaletteOpen] = useState(false);
         const [filterOpen, setFilterOpen] = useState(false);
@@ -2652,6 +2659,7 @@ window.__ModuleLoader__.load({
           const close = (event) => {
             if (moveMenuRef.current !== null && moveMenuRef.current.contains(event.target)) return;
             setMoveMenuOpen(false);
+            setMoveBoardId(null);
           };
           window.addEventListener('pointerdown', close);
           return () => window.removeEventListener('pointerdown', close);
@@ -2775,6 +2783,8 @@ window.__ModuleLoader__.load({
         ).length;
         const selectedNotesAllPinned =
           noteSelection.size > 0 && [...noteSelection].every((id) => notes.find((note) => note.id === id)?.pinned === true);
+        const otherBoards = boards.filter((entry) => entry.id !== activeBoardId);
+        const moveTargetBoard = moveBoardId === null ? null : boards.find((entry) => entry.id === moveBoardId) ?? null;
 
         /** Toggle one paper colour in the wall filter. */
         function toggleNoteColor(color) {
@@ -3264,8 +3274,24 @@ window.__ModuleLoader__.load({
           const ids = [...cardSelection];
           if (ids.length === 0 || onColumnId === '') return;
           clearCardSelection();
+          setMoveMenuOpen(false);
+          setMoveBoardId(null);
           await call('card.bulkUpdate', { ids, patch: { columnId: onColumnId } });
           showToast({ text: `${t('action.moveTo')} · ${ids.length}` });
+        }
+
+        /** Move the selected cards to another board's column. */
+        async function moveSelectedToBoard(targetBoardId, onColumnId) {
+          const ids = [...cardSelection];
+          if (ids.length === 0 || targetBoardId === '' || onColumnId === '') return;
+          const targetBoard = boards.find((entry) => entry.id === targetBoardId);
+          clearCardSelection();
+          setMoveMenuOpen(false);
+          setMoveBoardId(null);
+          const answer = await call('card.moveToBoard', { ids, boardId: targetBoardId, columnId: onColumnId });
+          if (answer !== null) {
+            showToast({ text: `${t('toast.movedToBoard')}「${targetBoard?.title ?? targetBoardId}」· ${ids.length}` });
+          }
         }
 
         /** Erase the selection for good, after a confirmation. */
@@ -3648,22 +3674,57 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { className: 'sb-menu-wrap', ref: moveMenuRef },
-                  h(Btn, { onClick: () => setMoveMenuOpen((on) => !on), title: t('action.moveTo') }, `${t('action.moveTo')} ▾`),
+                  h(Btn, {
+                    onClick: () => {
+                      setMoveBoardId(null);
+                      setMoveMenuOpen((on) => !on);
+                    },
+                    title: t('action.moveTo'),
+                  }, `${t('action.moveTo')} ▾`),
                   moveMenuOpen
                     ? h(
                         'div',
-                        { className: 'sb-menu', style: { minWidth: '120px' } },
-                        (board?.columns ?? []).map((column) =>
-                          h('button', {
-                            key: column.id,
-                            type: 'button',
-                            className: 'sb-menu-item',
-                            onClick: () => {
-                              setMoveMenuOpen(false);
-                              void moveSelectedTo(column.id);
-                            },
-                          }, column.title),
-                        ),
+                        { className: 'sb-menu', style: { minWidth: '160px' } },
+                        moveTargetBoard === null
+                          ? [
+                              h('span', { key: 'this', className: 'sb-filter-title' }, t('label.thisBoard')),
+                              (board?.columns ?? []).map((column) =>
+                                h('button', {
+                                  key: column.id,
+                                  type: 'button',
+                                  className: 'sb-menu-item',
+                                  onClick: () => void moveSelectedTo(column.id),
+                                }, column.title),
+                              ),
+                              otherBoards.length > 0
+                                ? h('span', { key: 'other', className: 'sb-filter-title' }, t('label.otherBoards'))
+                                : null,
+                              otherBoards.map((entry) =>
+                                h('button', {
+                                  key: entry.id,
+                                  type: 'button',
+                                  className: 'sb-menu-item',
+                                  onClick: () => setMoveBoardId(entry.id),
+                                }, `→ ${entry.title}`),
+                              ),
+                            ]
+                          : [
+                              h('span', { key: 'target', className: 'sb-filter-title' }, moveTargetBoard.title),
+                              (moveTargetBoard.columns ?? []).map((column) =>
+                                h('button', {
+                                  key: column.id,
+                                  type: 'button',
+                                  className: 'sb-menu-item',
+                                  onClick: () => void moveSelectedToBoard(moveTargetBoard.id, column.id),
+                                }, column.title),
+                              ),
+                              h('button', {
+                                key: 'back',
+                                type: 'button',
+                                className: 'sb-menu-item',
+                                onClick: () => setMoveBoardId(null),
+                              }, `← ${t('action.back')}`),
+                            ],
                       )
                     : null,
                 ),
